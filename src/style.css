@@ -1,296 +1,209 @@
+/*
+ * Estilos base del simulador.
+ *
+ * Reemplaza la hoja de ejemplo que trae la plantilla de Vite: esa centraba
+ * un logo y no servía para un layout de dos paneles.
+ */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --fondo: #11141a;
+  --panel: #1a1f29;
+  --borde: #2a2f3a;
+  --texto: #e6e9ef;
+  --texto-apagado: #8b93a7;
+  --acento: #4f9dff;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
-
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
-
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+  min-height: 100vh;
+  background: var(--fondo);
+  color: var(--texto);
 }
 
 #app {
-  width: 1126px;
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  padding: 1.5rem;
 }
 
-#center {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
+/* ---------- Cabecera ---------- */
 
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
+.cabecera h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  margin: 0.25rem 0 1.5rem;
+  color: var(--texto-apagado);
+  font-size: 0.95rem;
+}
+
+/* ---------- Layout de dos paneles ---------- */
+
+.espacio-trabajo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.titulo-panel {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-apagado);
+}
+
+/* ---------- Editor de bloques ---------- */
+
+/*
+ * Blockly se inyecta dentro de este div y lo llena por completo. Necesita
+ * altura explícita: con `height: auto` el contenedor mide 0 y el editor
+ * simplemente no aparece. Es el error más común al integrarlo.
+ */
+#editor-bloques {
+  height: 600px;
+  min-width: 480px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* ---------- Ring ---------- */
+
+#ring {
+  display: block;
+  background: #0b0d12;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+}
+
+.nota-pendiente {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--texto-apagado);
+  font-style: italic;
+}
+
+/* ---------- Pantallas angostas ---------- */
+
+@media (max-width: 1100px) {
+  .espacio-trabajo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #ring {
+    width: 100%;
+    height: auto;
   }
 }
 
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
+/* ---------- Ajustes del toolbox de Blockly ---------- */
 
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
+/*
+ * OJO con los nombres de clase: Blockly 13 renombro las del toolbox.
+ * Las antiguas (.blocklyTreeLabel, .blocklyTreeRow) ya no existen y la
+ * mayoria de ejemplos en internet siguen usandolas, asi que al copiarlos
+ * no pasa nada y uno cree que el CSS no carga. Las correctas son
+ * .blocklyToolbox, .blocklyToolboxCategory y .blocklyToolboxCategoryLabel.
+ *
+ * El problema de fondo: el toolbox tiene fondo claro, pero hereda el color
+ * de texto de nuestro tema oscuro. Gris claro sobre gris claro = ilegible.
+ */
 
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+.blocklyToolbox {
+  background: #eef1f6;
+  border-right: 1px solid var(--borde);
+  padding-top: 0.5rem;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-#next-steps ul {
-  list-style: none;
+/*
+ * Dos cosas que solo se ven inspeccionando el DOM:
+ *
+ * 1. Blockly le fija a .blocklyToolboxCategory una altura de 22px, pero la
+ *    fila de adentro mide 36px. Como el fondo de seleccion se pinta sobre
+ *    la categoria, el texto sobresale del recuadro de color. Por eso
+ *    `height: auto` con !important: hay que ganarle a su regla.
+ *
+ * 2. La barrita de color de la izquierda no es un elemento: es un
+ *    `border-left: 8px` que Blockly pone por estilo en linea.
+ *
+ * 3. Entre la barra y el texto hay un <span> de icono VACIO de 16px. Es el
+ *    hueco raro que se ve. Como no usamos iconos, lo ocultamos y el texto
+ *    queda alineado con la barra.
+ */
+.blocklyToolboxCategory {
+  height: auto !important;
+  line-height: normal !important;
   padding: 0;
+  margin: 0 0.3rem 2px;
+  border-radius: 0 5px 5px 0;
+  overflow: visible;
+}
+
+.blocklyToolboxCategoryIcon {
+  display: none !important;
+}
+
+.blocklyToolboxCategory .blocklyTreeRowContentContainer {
   display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  line-height: 1.5;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.blocklyToolboxCategoryLabel {
+  color: #1a1f29;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
-.ticks {
-  position: relative;
-  width: 100%;
+.blocklyToolboxCategory:hover {
+  background: #dfe5ef;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+/*
+ * El fondo del resaltado lo pone Blockly con el color de la categoria, por
+ * estilo en linea. El color de respaldo de abajo no lo pisa (un estilo en
+ * linea le gana a una regla sin !important): esta solo para que, si alguna
+ * vez Blockly no lo aplica, el texto blanco no quede invisible sobre el
+ * fondo claro del toolbox.
+ */
+.blocklyToolboxSelected {
+  background-color: #5b80a5;
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+.blocklyToolboxSelected .blocklyToolboxCategoryLabel {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.blocklyFlyoutBackground {
+  fill: #eef1f6;
+  fill-opacity: 1;
+  stroke: var(--borde);
+  stroke-width: 1;
 }
