@@ -46,6 +46,27 @@ export type Instruccion =
   | { tipo: 'siBorde'; lado: 'izq' | 'der' | 'cualquiera'; entonces: Instruccion[] }
   | { tipo: 'repetirSiempre'; cuerpo: Instruccion[] };
 
+/**
+ * Datos fijos del robot que el programa necesita conocer.
+ *
+ * No son lecturas: son constantes fisicas que no cambian durante el combate.
+ * Por eso no viven en `LecturaSensores` —que modela lo que el robot percibe
+ * en cada frame— sino que se le pasan a la VM al construirla, una sola vez.
+ *
+ * Coincide con como se programa un EV3 real: el ancho entre ruedas esta
+ * escrito como constante en el codigo, nadie lo mide en tiempo de ejecucion.
+ *
+ * Lo necesita la VM para ejecutar `girar`: con los grados pedidos no alcanza,
+ * hace falta saber cuanto tiempo mantener las ruedas en sentidos opuestos.
+ *
+ *   velocidad angular:  w = 2 * velocidad / anchoEje
+ *   duracion del giro:  t = (grados en radianes) / w
+ */
+export interface ConfiguracionRobot {
+  anchoEje: number;      // distancia entre ruedas, cm
+  velocidadMax: number;  // cm/s; la VM recorta las ordenes a este limite
+}
+
 /** Dimensiones del ring de competencia (medidas reales). */
 export const RING = {
   radio: 38.5,        // cm (ring de 77 cm de diámetro)
