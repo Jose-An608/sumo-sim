@@ -1,6 +1,7 @@
 import './style.css';
 import { montarEditor } from './blocks/workspace.ts';
-import { configurarCanvas, dibujarRing } from './render/canvas.ts';
+import { configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
+import type { Robot } from './types.ts';
 
 /**
  * Punto de entrada. Por ahora solo arma el layout y monta el editor (B1.1).
@@ -42,3 +43,11 @@ montarEditor(contenedorEditor);
 const canvasRing = document.querySelector<HTMLCanvasElement>('#ring')!;
 const ctxRing = configurarCanvas(canvasRing);
 dibujarRing(ctxRing);
+
+const robotsPrueba: Robot[] = [
+  { id: 'a', x: -20, y: 0, theta: 0, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
+  { id: 'b', x: 20, y: 0, theta: Math.PI, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
+];
+
+dibujarRobot(ctxRing, robotsPrueba[0], '#e74c3c');
+dibujarRobot(ctxRing, robotsPrueba[1], '#3498db');
