@@ -1,5 +1,6 @@
 import './style.css';
 import { montarEditor } from './blocks/workspace.ts';
+import { configurarCanvas, dibujarRing } from './render/canvas.ts';
 
 /**
  * Punto de entrada. Por ahora solo arma el layout y monta el editor (B1.1).
@@ -30,10 +31,14 @@ app.innerHTML = `
       <h2 class="titulo-panel">Ring</h2>
       <!-- Zona de José (A1.1 – A1.3). No tocar desde blocks/ ni vm/. -->
       <canvas id="ring" width="600" height="600"></canvas>
-      <p class="nota-pendiente">El render llega con las tareas A1.x.</p>
     </section>
   </main>
 `;
 
 const contenedorEditor = document.querySelector<HTMLDivElement>('#editor-bloques')!;
 montarEditor(contenedorEditor);
+
+// Render del ring (A1.1)
+const canvasRing = document.querySelector<HTMLCanvasElement>('#ring')!;
+const ctxRing = configurarCanvas(canvasRing);
+dibujarRing(ctxRing);
