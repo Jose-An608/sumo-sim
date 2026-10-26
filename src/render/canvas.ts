@@ -1,4 +1,4 @@
-import { RING } from '../types';
+import { RING, type Robot } from '../types';
 
 /** Escala: cuántos píxeles mide un centímetro en pantalla. */
 let escala = 1;
@@ -36,4 +36,32 @@ export function dibujarRing(ctx: CanvasRenderingContext2D): void {
   ctx.arc(cx, cy, cmAPx(RING.radio - RING.grosorBorde), 0, Math.PI * 2);
   ctx.fillStyle = '#1a1a1a';
   ctx.fill();
+}
+
+
+/** Dibuja un robot como rectángulo rotado, con una marca en el frente. */
+export function dibujarRobot(ctx: CanvasRenderingContext2D, robot: Robot, color: string): void {
+  const cx = ctx.canvas.width / 2;
+  const cy = ctx.canvas.height / 2;
+
+  // Pasamos del sistema del mundo (cm, origen al centro) al del canvas (px)
+  const px = cx + cmAPx(robot.x);
+  const py = cy + cmAPx(robot.y);
+
+  const largo = cmAPx(robot.radio * 2);
+  const ancho = cmAPx(robot.anchoEje);
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(robot.theta);
+
+  // Cuerpo: centrado en el origen ya trasladado
+  ctx.fillStyle = robot.vivo ? color : '#555';
+  ctx.fillRect(-largo / 2, -ancho / 2, largo, ancho);
+
+  // Marca del frente: franja clara en el borde delantero
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(largo / 2 - cmAPx(1.5), -ancho / 2, cmAPx(1.5), ancho);
+
+  ctx.restore();
 }
