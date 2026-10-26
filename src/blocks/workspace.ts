@@ -1,49 +1,45 @@
 import * as Blockly from 'blockly';
+import { COLOR } from './definitions.ts';
 
 /**
- * B1.1 — Integración de Blockly.
+ * B1.1 / B1.2 — Montaje del editor de bloques.
  *
  * Esta capa solo se encarga de montar el editor de bloques y devolver el
  * workspace. No sabe nada del simulador: no conoce el motor, ni la física,
  * ni el canvas. Esa separación es la que permite probar el generador
  * (B1.3) sin levantar la simulación completa.
  *
- * El toolbox de abajo es TEMPORAL: es la paleta por defecto de Blockly,
- * suficiente para cumplir el criterio de aceptación de B1.1 ("aparece el
- * área de bloques con la paleta por defecto"). En B1.2 se reemplaza por las
- * tres categorías del sumo: Movimiento, Sensores y Control.
+ * El toolbox ya no usa la paleta por defecto de Blockly: ahora lista los
+ * bloques del sumo definidos en definitions.ts (B1.2).
  */
 
-const TOOLBOX_PROVISIONAL = {
+const TOOLBOX_SUMO = {
   kind: 'categoryToolbox',
   contents: [
     {
       kind: 'category',
-      name: 'Lógica',
-      colour: '210',
+      name: 'Movimiento',
+      colour: String(COLOR.movimiento),
       contents: [
-        { kind: 'block', type: 'controls_if' },
-        { kind: 'block', type: 'logic_compare' },
-        { kind: 'block', type: 'logic_boolean' },
+        { kind: 'block', type: 'sumo_avanzar' },
+        { kind: 'block', type: 'sumo_girar' },
+        { kind: 'block', type: 'sumo_detener' },
       ],
     },
     {
       kind: 'category',
-      name: 'Bucles',
-      colour: '120',
+      name: 'Sensores',
+      colour: String(COLOR.sensores),
       contents: [
-        { kind: 'block', type: 'controls_repeat_ext' },
-        { kind: 'block', type: 'controls_whileUntil' },
+        { kind: 'block', type: 'sumo_si_distancia_menor' },
+        { kind: 'block', type: 'sumo_si_borde' },
       ],
     },
     {
       kind: 'category',
-      name: 'Matemática',
-      colour: '230',
-      contents: [
-        { kind: 'block', type: 'math_number' },
-        { kind: 'block', type: 'math_arithmetic' },
-      ],
+      name: 'Control',
+      colour: String(COLOR.control),
+      contents: [{ kind: 'block', type: 'sumo_repetir_siempre' }],
     },
   ],
 };
@@ -59,7 +55,7 @@ let workspace: Blockly.WorkspaceSvg | null = null;
  */
 export function montarEditor(contenedor: HTMLElement): Blockly.WorkspaceSvg {
   workspace = Blockly.inject(contenedor, {
-    toolbox: TOOLBOX_PROVISIONAL,
+    toolbox: TOOLBOX_SUMO,
     grid: { spacing: 20, length: 3, colour: '#2a2f3a', snap: true },
     zoom: { controls: true, wheel: true, startScale: 0.9 },
     trashcan: true,
