@@ -1,6 +1,6 @@
 import './style.css';
 import { montarEditor } from './blocks/workspace.ts';
-import { configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
+import { calcularEscala, configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
 import type { Robot } from './types.ts';
 
 /**
@@ -42,12 +42,13 @@ montarEditor(contenedorEditor);
 // Render del ring (A1.1)
 const canvasRing = document.querySelector<HTMLCanvasElement>('#ring')!;
 const ctxRing = configurarCanvas(canvasRing);
-dibujarRing(ctxRing);
+const escalaRing = calcularEscala(canvasRing.width, canvasRing.height);
+dibujarRing(ctxRing, escalaRing);
 
 const robotsPrueba: Robot[] = [
   { id: 'a', x: -20, y: 0, theta: 0, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
   { id: 'b', x: 20, y: 0, theta: Math.PI, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
 ];
 
-dibujarRobot(ctxRing, robotsPrueba[0], '#e74c3c');
-dibujarRobot(ctxRing, robotsPrueba[1], '#3498db');
+dibujarRobot(ctxRing, robotsPrueba[0], '#e74c3c', escalaRing);
+dibujarRobot(ctxRing, robotsPrueba[1], '#3498db', escalaRing);
