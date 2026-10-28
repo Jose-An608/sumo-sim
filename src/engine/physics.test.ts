@@ -60,7 +60,7 @@ describe('aplicarCinematica', () => {
   it('avanza en la dirección a la que mira, no siempre en +X', () => {
     const r = crearRobot({ theta: Math.PI / 2, vL: 10, vR: 10 });
     aplicarCinematica(r, 0.1);
-    expect(r.x).toBeCloseTo(1e-17);
+    expect(r.x).toBeCloseTo(0);
     expect(r.y).toBeCloseTo(1);
   });
 });

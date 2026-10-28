@@ -81,4 +81,11 @@ describe('sensores de color', () => {
 
     expect(huboDiferencia).toBe(true);
   });
+  
+  it('el sensor izquierdo es el del lado -Y', () => {
+    const yo = crearRobot({ x: 0, y: -(RING.radio - 4), theta: 0 });
+    const lectura = leerSensores(yo, crearRobot({ x: 30 }));
+    expect(lectura.bordeIzquierdo).toBe(true);
+    expect(lectura.bordeDerecho).toBe(false);
+  });
 });
