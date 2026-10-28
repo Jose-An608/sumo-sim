@@ -40,7 +40,7 @@ export class Simulacion {
       // robot dentro del otro, y las colisiones deshacen esa penetración
       // antes de que se dibuje nada.
       for (const r of this.robots) aplicarCinematica(r, DT);
-      resolverColisiones(this.robots);
+      resolverColisiones(this.robots, DT);
 
       this.alDibujar(this.robots);
       this.idFrame = requestAnimationFrame(paso);

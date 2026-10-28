@@ -27,15 +27,18 @@ export function aplicarCinematica(r: Robot, dt: number): void {
 }
 
 /**
- * Separa a los robots que se estén solapando.
+ * Separa a los robots que se estén solapando y transfiere el empuje.
  *
  * Modelo círculo-círculo: hay colisión cuando la distancia entre centros es
- * menor que la suma de radios. La penetración se reparte por igual entre
- * ambos, empujándolos a lo largo de la línea que une sus centros.
+ * menor que la suma de radios. La penetración se reparte según la "fuerza"
+ * de cada uno (masa por empuje), y además el empujado acompaña al que empuja.
  *
  * Los robots que ya salieron del ring (`vivo: false`) no participan.
+ *
+ * @param robots lista de robots en el ring
+ * @param dt     paso de tiempo en segundos
  */
-export function resolverColisiones(robots: Robot[]): void {
+export function resolverColisiones(robots: Robot[], dt = 1 / 60): void {
   for (let i = 0; i < robots.length; i++) {
     for (let j = i + 1; j < robots.length; j++) {
       const a = robots[i];
@@ -55,12 +58,40 @@ export function resolverColisiones(robots: Robot[]): void {
       const nx = distancia === 0 ? 1 : dx / distancia;
       const ny = distancia === 0 ? 0 : dy / distancia;
 
-      const mitad = (minima - distancia) / 2;
+      // Cuánto empuja cada uno contra el otro, proyectando su velocidad
+      // lineal sobre la normal del choque.
+      const vA = (a.vL + a.vR) / 2;
+      const vB = (b.vL + b.vR) / 2;
+      const empujeA = Math.max(0, vA * Math.cos(a.theta) * nx + vA * Math.sin(a.theta) * ny);
+      const empujeB = Math.max(0, -(vB * Math.cos(b.theta) * nx + vB * Math.sin(b.theta) * ny));
 
-      a.x -= nx * mitad;
-      a.y -= ny * mitad;
-      b.x += nx * mitad;
-      b.y += ny * mitad;
+      // El que empuja con más fuerza cede menos terreno. La masa cuenta
+      // incluso en reposo: un robot pesado es más difícil de mover.
+      const fuerzaA = a.masa * (1 + empujeA);
+      const fuerzaB = b.masa * (1 + empujeB);
+      const total = fuerzaA + fuerzaB;
+
+      const penetracion = minima - distancia;
+      const cedeA = penetracion * (fuerzaB / total);
+      const cedeB = penetracion * (fuerzaA / total);
+
+      a.x -= nx * cedeA;
+      a.y -= ny * cedeA;
+      b.x += nx * cedeB;
+      b.y += ny * cedeB;
+
+      // Arrastre: el empujado acompaña al que empuja. Sin esto la colisión
+      // solo corrige posiciones y el par queda trabado, porque lo que uno
+      // gana en un cuadro lo pierde en el siguiente.
+      if (empujeA > empujeB) {
+        const arrastre = (empujeA - empujeB) * (fuerzaA / total);
+        b.x += nx * arrastre * dt;
+        b.y += ny * arrastre * dt;
+      } else if (empujeB > empujeA) {
+        const arrastre = (empujeB - empujeA) * (fuerzaB / total);
+        a.x -= nx * arrastre * dt;
+        a.y -= ny * arrastre * dt;
+      }
     }
   }
 }

@@ -108,3 +108,30 @@ describe('resolverColisiones', () => {
     expect(b.x).toBe(5);
   });
 });
+
+describe('empuje en colisiones', () => {
+  it('desplaza al robot detenido cuando otro lo embiste', () => {
+    const quieto = crearRobot({ id: 'quieto', x: 10, y: 0 });
+    const embiste = crearRobot({ id: 'embiste', x: -5, y: 0, vL: 30, vR: 30 });
+    resolverColisiones([embiste, quieto]);
+    // Con separación simétrica quedaría en 11.5; el empuje debe moverlo más.
+    expect(quieto.x).toBeGreaterThan(11.5);
+  });
+
+  it('el más pesado gana terreno al más ligero', () => {
+    const pesado = crearRobot({ id: 'pesado', x: -5, y: 0, masa: 3, vL: 30, vR: 30 });
+    const ligero = crearRobot({ id: 'ligero', x: 10, y: 0, masa: 1, vL: -30, vR: -30 });
+    resolverColisiones([pesado, ligero]);
+    // El punto de contacto se corre hacia el lado del ligero
+    const centro = (pesado.x + ligero.x) / 2;
+    expect(centro).toBeGreaterThan(2.5);
+  });
+
+  it('no empuja si ninguno avanza contra el otro', () => {
+    const a = crearRobot({ id: 'a', x: -5, y: 0 });
+    const b = crearRobot({ id: 'b', x: 5, y: 0 });
+    resolverColisiones([a, b]);
+    expect(a.x).toBeCloseTo(-9);
+    expect(b.x).toBeCloseTo(9);
+  });
+});
