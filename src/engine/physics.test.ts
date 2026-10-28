@@ -42,11 +42,17 @@ describe('aplicarCinematica', () => {
     aplicarCinematica(r, 0.1);
     expect(r.x).toBeCloseTo(0);
     expect(r.y).toBeCloseTo(0);
-    expect(r.theta).toBeCloseTo(0.1);
+    expect(r.theta).toBeCloseTo(-0.1);
   });
 
-  it('gira en sentido horario cuando la rueda derecha va más rápido', () => {
+  it('gira a su izquierda (antihorario en pantalla) cuando la rueda derecha va más rápido', () => {
     const r = crearRobot({ vL: 0, vR: 12 });
+    aplicarCinematica(r, 0.1);
+    expect(r.theta).toBeLessThan(0);
+  });
+
+  it('gira a su derecha (horario en pantalla) cuando la rueda izquierda va más rápido', () => {
+    const r = crearRobot({ vL: 12, vR: 0 });
     aplicarCinematica(r, 0.1);
     expect(r.theta).toBeGreaterThan(0);
   });

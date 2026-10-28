@@ -6,8 +6,17 @@
  *
  * - No se modifica sin acuerdo de los dos.
  * - Distancias en centímetros, ángulos en radianes.
+ *
+ * SISTEMA DE COORDENADAS Y GIROS
  * - Eje X hacia la derecha, eje Y hacia abajo (como el canvas).
  * - theta = 0 significa que el robot mira hacia +X.
+ * - theta creciente = horario en pantalla.
+ * - La IZQUIERDA del robot es -Y, la DERECHA es +Y.
+ * - vL > vR hace que el robot gire a su derecha, y en pantalla
+ *   se ve horario. Pantalla, física e intuición coinciden.
+ * - La velocidad angular es w = (vL - vR) / anchoEje. La forma de los
+ *   libros, (vR - vL), asume el eje Y hacia arriba; en este marco el
+ *   signo se invierte.
  */
 
 /** Estado completo de un robot en un instante dado. */
