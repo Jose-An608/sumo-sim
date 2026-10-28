@@ -134,4 +134,17 @@ describe('empuje en colisiones', () => {
     expect(a.x).toBeCloseTo(-9);
     expect(b.x).toBeCloseTo(9);
   });
+
+  it('el empujado no se adelanta al que empuja', () => {
+    const a = crearRobot({ id: 'a', x: -9, vL: 20, vR: 20 });
+    const b = crearRobot({ id: 'b', x: 9, theta: Math.PI });
+
+    for (let i = 0; i < 60; i++) {
+      aplicarCinematica(a, 1 / 60);
+      aplicarCinematica(b, 1 / 60);
+      resolverColisiones([a, b]);
+    }
+
+    expect(b.x - a.x).toBeCloseTo(a.radio + b.radio);
+  });
 });
