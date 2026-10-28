@@ -54,11 +54,11 @@ const robotsPrueba: Robot[] = [
 const sim = new Simulacion(
   robotsPrueba,
   (robots) => {
-    // Velocidades de prueba: el rojo avanza, el azul gira sobre su eje.
+    // Velocidades de prueba: los dos avanzan y chocan en el centro.    
     robots[0].vL = 10;
     robots[0].vR = 10;
-    robots[1].vL = -6;
-    robots[1].vR = 6;
+    robots[1].vL = 10;
+    robots[1].vR = 10;
   },
   (robots) => {
     dibujarRing(ctxRing, escalaRing);

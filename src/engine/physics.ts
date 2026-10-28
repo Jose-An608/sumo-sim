@@ -25,3 +25,42 @@ export function aplicarCinematica(r: Robot, dt: number): void {
   r.x += v * Math.cos(r.theta) * dt;
   r.y += v * Math.sin(r.theta) * dt;
 }
+
+/**
+ * Separa a los robots que se estén solapando.
+ *
+ * Modelo círculo-círculo: hay colisión cuando la distancia entre centros es
+ * menor que la suma de radios. La penetración se reparte por igual entre
+ * ambos, empujándolos a lo largo de la línea que une sus centros.
+ *
+ * Los robots que ya salieron del ring (`vivo: false`) no participan.
+ */
+export function resolverColisiones(robots: Robot[]): void {
+  for (let i = 0; i < robots.length; i++) {
+    for (let j = i + 1; j < robots.length; j++) {
+      const a = robots[i];
+      const b = robots[j];
+
+      if (!a.vivo || !b.vivo) continue;
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distancia = Math.hypot(dx, dy);
+      const minima = a.radio + b.radio;
+
+      if (distancia >= minima) continue;
+
+      // Si están exactamente superpuestos no hay dirección definida:
+      // los separamos en X para evitar dividir por cero.
+      const nx = distancia === 0 ? 1 : dx / distancia;
+      const ny = distancia === 0 ? 0 : dy / distancia;
+
+      const mitad = (minima - distancia) / 2;
+
+      a.x -= nx * mitad;
+      a.y -= ny * mitad;
+      b.x += nx * mitad;
+      b.y += ny * mitad;
+    }
+  }
+}
