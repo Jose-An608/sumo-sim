@@ -2,6 +2,7 @@ import './style.css';
 import { montarEditor } from './blocks/workspace.ts';
 import { calcularEscala, configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
 import type { Robot } from './types.ts';
+import { Simulacion } from './engine/world.ts';
 
 /**
  * Punto de entrada. Por ahora solo arma el layout y monta el editor (B1.1).
@@ -50,5 +51,20 @@ const robotsPrueba: Robot[] = [
   { id: 'b', x: 20, y: 0, theta: Math.PI, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
 ];
 
-dibujarRobot(ctxRing, robotsPrueba[0], '#e74c3c', escalaRing);
-dibujarRobot(ctxRing, robotsPrueba[1], '#3498db', escalaRing);
+const sim = new Simulacion(
+  robotsPrueba,
+  (robots) => {
+    // Velocidades de prueba: el rojo avanza, el azul gira sobre su eje.
+    robots[0].vL = 10;
+    robots[0].vR = 10;
+    robots[1].vL = -6;
+    robots[1].vR = 6;
+  },
+  (robots) => {
+    dibujarRing(ctxRing, escalaRing);
+    dibujarRobot(ctxRing, robots[0], '#e74c3c', escalaRing);
+    dibujarRobot(ctxRing, robots[1], '#3498db', escalaRing);
+  },
+);
+
+sim.iniciar();
