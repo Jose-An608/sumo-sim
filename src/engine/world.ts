@@ -1,5 +1,5 @@
 import type { Robot } from '../types';
-import { aplicarCinematica } from './physics';
+import { aplicarCinematica, resolverColisiones } from './physics';
 
 /** Paso de tiempo fijo: 60 cuadros por segundo. */
 export const DT = 1 / 60;
@@ -35,7 +35,13 @@ export class Simulacion {
     if (this.corriendo) return;
     const paso = () => {
       this.alActualizar(this.robots, DT);
+
+      // Primero mover, después corregir: la cinemática puede meter a un
+      // robot dentro del otro, y las colisiones deshacen esa penetración
+      // antes de que se dibuje nada.
       for (const r of this.robots) aplicarCinematica(r, DT);
+      resolverColisiones(this.robots);
+
       this.alDibujar(this.robots);
       this.idFrame = requestAnimationFrame(paso);
     };
