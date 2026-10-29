@@ -207,3 +207,50 @@ body {
   stroke: var(--borde);
   stroke-width: 1;
 }
+
+/* --- Controles de simulación (A2.4, José) --- */
+
+.controles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.boton {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #3a4150;
+  border-radius: 6px;
+  background: #222835;
+  color: #e6e9ef;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.boton:hover:not(:disabled) {
+  background: #2d3442;
+}
+
+.boton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.boton.vel {
+  min-width: 3rem;
+}
+
+.boton.vel.activa {
+  background: #3498db;
+  border-color: #3498db;
+  color: #ffffff;
+}
+
+.separador-controles {
+  width: 1px;
+  align-self: stretch;
+  background: #3a4150;
+  margin: 0 0.35rem;
+}
