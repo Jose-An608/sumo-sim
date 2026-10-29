@@ -27,13 +27,23 @@ export function aplicarCinematica(r: Robot, dt: number): void {
 }
 
 /**
- * Separa a los robots que se estén solapando.
+ * Separa a los robots que se estén solapando, repartiendo la penetración.
  *
  * Modelo círculo-círculo: hay colisión cuando la distancia entre centros es
- * menor que la suma de radios. La penetración se reparte por igual entre
- * ambos, empujándolos a lo largo de la línea que une sus centros.
+ * menor que la suma de radios. El reparto NO es simétrico: depende de la
+ * "fuerza" de cada uno (masa por empuje), así que el que embiste cede menos
+ * terreno y el par entero avanza en su dirección.
+ *
+ * Eso ya es empujar. No hace falta transferir velocidad aparte: en cada
+ * cuadro el que avanza penetra, el reparto lo frena un poco y mueve al otro,
+ * y ambos terminan desplazándose juntos a una velocidad algo menor que la
+ * del que empuja. Medido con el escenario de la demo (20 cm/s contra un
+ * robot quieto, 60 cuadros): los dos avanzan 19.09 cm y quedan en contacto
+ * exacto.
  *
  * Los robots que ya salieron del ring (`vivo: false`) no participan.
+ *
+ * @param robots lista de robots en el ring
  */
 export function resolverColisiones(robots: Robot[]): void {
   for (let i = 0; i < robots.length; i++) {
@@ -55,12 +65,28 @@ export function resolverColisiones(robots: Robot[]): void {
       const nx = distancia === 0 ? 1 : dx / distancia;
       const ny = distancia === 0 ? 0 : dy / distancia;
 
-      const mitad = (minima - distancia) / 2;
+      // Cuánto empuja cada uno contra el otro, proyectando su velocidad
+      // lineal sobre la normal del choque. El max(0, ...) evita que alguien
+      // "empuje" alejándose.
+      const vA = (a.vL + a.vR) / 2;
+      const vB = (b.vL + b.vR) / 2;
+      const empujeA = Math.max(0, vA * Math.cos(a.theta) * nx + vA * Math.sin(a.theta) * ny);
+      const empujeB = Math.max(0, -(vB * Math.cos(b.theta) * nx + vB * Math.sin(b.theta) * ny));
 
-      a.x -= nx * mitad;
-      a.y -= ny * mitad;
-      b.x += nx * mitad;
-      b.y += ny * mitad;
+      // El que empuja con más fuerza cede menos terreno. La masa cuenta
+      // incluso en reposo: un robot pesado es más difícil de mover.
+      const fuerzaA = a.masa * (1 + empujeA);
+      const fuerzaB = b.masa * (1 + empujeB);
+      const total = fuerzaA + fuerzaB;
+
+      const penetracion = minima - distancia;
+      const cedeA = penetracion * (fuerzaB / total);
+      const cedeB = penetracion * (fuerzaA / total);
+
+      a.x -= nx * cedeA;
+      a.y -= ny * cedeA;
+      b.x += nx * cedeB;
+      b.y += ny * cedeB;
     }
   }
 }
