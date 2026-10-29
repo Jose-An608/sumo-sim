@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { aplicarCinematica, resolverColisiones } from './physics';
-import type { Robot } from '../types';
+import { aplicarCinematica, resolverColisiones, detectarSalidas } from './physics';
+import { RING, type Robot } from '../types';
 
 /** Crea un robot en el origen, mirando hacia +X, con valores por defecto. */
 function crearRobot(parcial: Partial<Robot> = {}): Robot {
@@ -62,6 +62,13 @@ describe('aplicarCinematica', () => {
     aplicarCinematica(r, 0.1);
     expect(r.x).toBeCloseTo(0);
     expect(r.y).toBeCloseTo(1);
+  });
+
+  it('no mueve a un robot muerto aunque tenga velocidad', () => {
+    const r = crearRobot({ vL: 50, vR: 50, vivo: false });
+    aplicarCinematica(r, 0.1);
+    expect(r.x).toBe(0);
+    expect(r.y).toBe(0);
   });
 });
 
@@ -146,5 +153,38 @@ describe('empuje en colisiones', () => {
     }
 
     expect(b.x - a.x).toBeCloseTo(a.radio + b.radio);
+  });
+});
+
+describe('detectarSalidas', () => {
+  it('deja vivo al robot que está dentro del ring', () => {
+    const r = crearRobot({ x: 0, y: 0 });
+    detectarSalidas([r]);
+    expect(r.vivo).toBe(true);
+  });
+
+  it('mata al robot cuyo centro sale del radio', () => {
+    const r = crearRobot({ x: RING.radio + 1, y: 0 });
+    detectarSalidas([r]);
+    expect(r.vivo).toBe(false);
+  });
+
+  it('deja vivo al robot que toca el borde sin pasarlo', () => {
+    const r = crearRobot({ x: RING.radio - 1, y: 0 });
+    detectarSalidas([r]);
+    expect(r.vivo).toBe(true);
+  });
+
+  it('detiene los motores del robot que sale', () => {
+    const r = crearRobot({ x: RING.radio + 1, y: 0, vL: 20, vR: 20 });
+    detectarSalidas([r]);
+    expect(r.vL).toBe(0);
+    expect(r.vR).toBe(0);
+  });
+
+  it('detecta la salida en cualquier dirección', () => {
+    const r = crearRobot({ x: 0, y: RING.radio + 1 });
+    detectarSalidas([r]);
+    expect(r.vivo).toBe(false);
   });
 });

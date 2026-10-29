@@ -1,5 +1,5 @@
 import type { Robot } from '../types';
-import { aplicarCinematica, resolverColisiones } from './physics';
+import { aplicarCinematica, resolverColisiones, detectarSalidas } from './physics';
 
 /** Paso de tiempo fijo: 60 cuadros por segundo. */
 export const DT = 1 / 60;
@@ -41,6 +41,15 @@ export class Simulacion {
       // antes de que se dibuje nada.
       for (const r of this.robots) aplicarCinematica(r, DT);
       resolverColisiones(this.robots);
+      detectarSalidas(this.robots);
+
+      // El combate termina cuando queda uno o ninguno en pie. La pausa va
+      // antes de dibujar para que el último cuadro muestre el resultado.
+      if (this.robots.filter((r) => r.vivo).length <= 1) {
+        this.alDibujar(this.robots);
+        this.pausar();
+        return;
+      }
 
       this.alDibujar(this.robots);
       this.idFrame = requestAnimationFrame(paso);

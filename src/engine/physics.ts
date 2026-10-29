@@ -1,4 +1,4 @@
-import type { Robot } from '../types';
+import { RING, type Robot } from '../types';
 
 /**
  * Avanza la simulación de un robot un paso de tiempo.
@@ -10,6 +10,11 @@ import type { Robot } from '../types';
  * @param dt paso de tiempo en segundos
  */
 export function aplicarCinematica(r: Robot, dt: number): void {
+  // Un robot fuera de combate no se mueve, aunque alguien le escriba
+  // velocidades. Sin esto, cuando la VM entre en el bucle le escribiría a
+  // todos los robots en cada cuadro y el cadáver seguiría andando.
+  if (!r.vivo) return;
+
   // Velocidad lineal del centro del robot: el promedio de las dos ruedas.
   const v = (r.vL + r.vR) / 2;
 
@@ -87,6 +92,29 @@ export function resolverColisiones(robots: Robot[]): void {
       a.y -= ny * cedeA;
       b.x += nx * cedeB;
       b.y += ny * cedeB;
+    }
+  }
+}
+
+/**
+ * Marca como fuera de combate a los robots que salieron del ring.
+ *
+ * Criterio: el CENTRO del robot fuera del radio, no el cuerpo entero. En
+ * competencia real pierde quien toca fuera, pero aquí eso mataría a un robot
+ * por rozar el borde con una esquina y haría imposible cualquier estrategia
+ * de escape. Con el centro queda un margen para asomarse y recuperarse.
+ *
+ * Los motores se apagan al morir para que el robot no siga acelerando hacia
+ * el infinito fuera del canvas.
+ */
+export function detectarSalidas(robots: Robot[]): void {
+  for (const r of robots) {
+    if (!r.vivo) continue;
+
+    if (Math.hypot(r.x, r.y) > RING.radio) {
+      r.vivo = false;
+      r.vL = 0;
+      r.vR = 0;
     }
   }
 }
