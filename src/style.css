@@ -254,3 +254,9 @@ body {
   background: #3a4150;
   margin: 0 0.35rem;
 }
+.avisos {
+  margin-top: 0.5rem;
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  color: #e8b84b;
+}
