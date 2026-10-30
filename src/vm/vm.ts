@@ -125,7 +125,7 @@ export class VM {
         contexto.cuadros = 0;
       }
 
-      return orden;
+      return this.limitarOrden(orden);
     }
 
     // Se agoto el limite: el programa da vueltas sin mover nada.
@@ -212,8 +212,32 @@ export class VM {
    * Aqui es donde la VM necesita `anchoEje`: con los grados pedidos no
    * alcanza, porque cuanto tarda depende de la geometria del robot.
    */
+  /**
+   * Recorta una orden al maximo real del motor.
+   *
+   * Va en un solo punto, a la salida de step(), para que ningun caso del
+   * switch pueda olvidarse. El simulador no debe permitir algo que el robot
+   * real no puede hacer: si dejaramos pasar 200 cm/s, una estrategia se
+   * veria ganadora aqui y fallaria en el EV3.
+   */
+  private limitarOrden(orden: Orden): Orden {
+    return { vL: this.limitar(orden.vL), vR: this.limitar(orden.vR) };
+  }
+
+  /** Recorta una velocidad al rango que el motor puede dar. */
+  private limitar(v: number): number {
+    const max = this.config.velocidadMax;
+    return Math.max(-max, Math.min(max, v));
+  }
+
   private duracionGiroMs(grados: number, velocidad: number): number {
-    const w = (2 * Math.abs(velocidad)) / this.config.anchoEje;
+    // OJO: aqui tambien hay que recortar, no solo en la salida.
+    //
+    // Si la duracion se calculara con la velocidad PEDIDA y el giro se
+    // ejecutara con la RECORTADA, el robot giraria de menos. Pedir 90
+    // grados a 200 cm/s con un maximo de 50 daria 3 cuadros de duracion
+    // pero solo 24 grados de giro real, en vez de los 90 pedidos.
+    const w = (2 * Math.abs(this.limitar(velocidad))) / this.config.anchoEje;
     if (w === 0) return 0;
 
     const radianes = Math.abs(grados) * (Math.PI / 180);
