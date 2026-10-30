@@ -1,0 +1,63 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  # Permite lanzarlo a mano desde la pestaña Actions, por si hay que
+  # republicar sin tocar el código.
+  workflow_dispatch:
+
+# Los permisos mínimos que pide el deploy oficial de Pages. Por defecto el
+# token no puede escribir en Pages ni pedir el id-token, así que sin esto
+# el job falla con un 403 que no explica mucho.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Si entran dos merges seguidos, el segundo espera al primero en vez de
+# pisarlo. `cancel-in-progress: false` porque cancelar un deploy a medias
+# puede dejar el sitio en un estado raro.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # `npm run build` es `tsc && vite build`, así que un error de tipos
+      # detiene la publicación aquí. Eso es a propósito: preferimos que el
+      # link se quede viejo antes que publicar algo roto.
+      - name: Construir el sitio
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  publicar:
+    # Dos jobs y no uno: así, si la construcción falla, no se llega a tocar
+    # el sitio publicado.
+    needs: construir
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
