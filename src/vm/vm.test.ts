@@ -276,3 +276,48 @@ describe('bucles', () => {
     expect(vm.step(sensoresVacios())).toEqual({ vL: 0, vR: 0 });
   });
 });
+
+describe('limite del motor', () => {
+  test('recorta una velocidad mayor que la del motor', () => {
+    const vm = new VM([{ tipo: 'avanzar', velocidad: 200, duracionMs: 1000 }], CONFIG);
+
+    expect(vm.step(sensoresVacios())).toEqual({ vL: 50, vR: 50 });
+  });
+
+  test('recorta tambien hacia atras', () => {
+    const vm = new VM([{ tipo: 'avanzar', velocidad: -200, duracionMs: 1000 }], CONFIG);
+
+    expect(vm.step(sensoresVacios())).toEqual({ vL: -50, vR: -50 });
+  });
+
+  test('no toca las velocidades que el motor si puede dar', () => {
+    const vm = new VM([{ tipo: 'avanzar', velocidad: 30, duracionMs: 1000 }], CONFIG);
+
+    expect(vm.step(sensoresVacios())).toEqual({ vL: 30, vR: 30 });
+  });
+
+  test('girar recortado sigue girando los grados pedidos', () => {
+    // El caso que obliga a recortar en DOS sitios, no solo a la salida.
+    //
+    // Si la duracion se calculara con la velocidad pedida (200) y el giro
+    // se ejecutara con la recortada (50), la VM reservaria 3 cuadros y el
+    // robot giraria 24 grados en vez de 90. Recortando antes de calcular,
+    // reserva 11 cuadros y el giro sale correcto.
+    const vm = new VM([{ tipo: 'girar', grados: 90, velocidad: 200 }], CONFIG);
+
+    let theta = 0;
+    let cuadros = 0;
+
+    for (let i = 0; i < 200; i++) {
+      const orden = vm.step(sensoresVacios());
+      if (orden.vL === 0 && orden.vR === 0) break;
+
+      // Misma formula que aplicarCinematica, sin importar el motor.
+      theta += ((orden.vL - orden.vR) / CONFIG.anchoEje) * CONFIG.dt;
+      cuadros++;
+    }
+
+    expect(cuadros).toBe(11);
+    expect(theta).toBeCloseTo(Math.PI / 2, 1);
+  });
+});
