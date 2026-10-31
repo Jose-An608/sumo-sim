@@ -4,7 +4,7 @@ import { generarPrograma } from './blocks/generator.ts';
 import { calcularEscala, configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
 import { leerSensores } from './engine/sensors.ts';
 import { VM } from './vm/vm.ts';
-import type { LecturaSensores, Orden, Robot } from './types.ts';
+import { VELOCIDAD_MAX, type LecturaSensores, type Orden, type Robot } from './types.ts';
 import { DT, Simulacion } from './engine/world.ts';
 
 /**
@@ -15,8 +15,6 @@ import { DT, Simulacion } from './engine/world.ts';
  * En cada cuadro, por cada robot: se leen sus sensores, se le pasan a su VM,
  * y la orden que devuelve se escribe en sus ruedas. El motor hace el resto.
  */
-
-const VELOCIDAD_MAX = 50; // cm/s — motor grande EV3 con rueda de 5.6 cm
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 

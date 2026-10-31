@@ -6,7 +6,7 @@ import { VM } from './vm/vm.ts';
 import { leerSensores } from './engine/sensors.ts';
 import { aplicarCinematica, resolverColisiones, detectarSalidas } from './engine/physics.ts';
 import { DT } from './engine/world.ts';
-import { RING, type Robot } from './types.ts';
+import { RING, VELOCIDAD_MAX, type Robot } from './types.ts';
 
 /**
  * Tests de integracion: la cadena completa, de punta a punta.
@@ -18,8 +18,6 @@ import { RING, type Robot } from './types.ts';
  * los compila, ejecuta el programa en la VM y mueve el robot con la fisica
  * real, igual que hace main.ts en cada cuadro. Sin navegador ni canvas.
  */
-
-const VELOCIDAD_MAX = 50;
 
 function crearRobot(parcial: Partial<Robot> = {}): Robot {
   return {
