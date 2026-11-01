@@ -76,6 +76,22 @@ export interface ConfiguracionRobot {
   velocidadMax: number;  // cm/s; la VM recorta las ordenes a este limite
 }
 
+/**
+ * Velocidad maxima que puede dar el robot, en cm/s.
+ *
+ * No es un numero inventado: sale del hardware real.
+ *
+ *   Motor grande EV3:      ~170 rpm con carga
+ *   Rueda estandar LEGO:   5.6 cm de diametro -> 17.6 cm de circunferencia
+ *   170 / 60 = 2.83 vueltas/s  ->  2.83 x 17.6 = ~50 cm/s
+ *
+ * Vive aqui, en el contrato, porque lo usan los dos lados: la VM recorta
+ * sus ordenes a este limite y el motor satura al rival automatico. Tenerlo
+ * escrito en cada archivo que lo necesita garantiza que el dia que lo
+ * calibremos contra el robot real, alguna copia se quede vieja.
+ */
+export const VELOCIDAD_MAX = 50;
+
 /** Dimensiones del ring de competencia (medidas reales). */
 export const RING = {
   radio: 38.5,        // cm (ring de 77 cm de diámetro)
