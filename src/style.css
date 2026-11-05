@@ -79,8 +79,10 @@ body {
  * Blockly se inyecta dentro de este div y lo llena por completo. Necesita
  * altura explícita: con `height: auto` el contenedor mide 0 y el editor
  * simplemente no aparece. Es el error más común al integrarlo.
+ *
+ * Es una clase y no un id porque ahora hay dos editores, uno por robot.
  */
-#editor-bloques {
+.editor-bloques {
   height: 600px;
   min-width: 480px;
   border: 1px solid var(--borde);
@@ -238,10 +240,23 @@ body {
   cursor: default;
 }
 
+/*
+ * Estado seleccionado, genérico: lo usan las pestañas de editor y el
+ * selector de fuente del azul. Es deliberadamente neutro y no azul: en esta
+ * aplicación el azul es un robot, así que pintar de azul la pestaña "Rojo"
+ * diría algo que no es.
+ */
+.boton.activa {
+  background: #39414f;
+  border-color: #5a6578;
+  color: #ffffff;
+}
+
 .boton.vel {
   min-width: 3rem;
 }
 
+/* Los de velocidad sí van en azul: ahí no compite con ningún robot. */
 .boton.vel.activa {
   background: #3498db;
   border-color: #3498db;

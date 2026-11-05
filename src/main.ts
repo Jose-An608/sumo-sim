@@ -1,5 +1,6 @@
 import './style.css';
-import { montarEditor, obtenerWorkspace } from './blocks/workspace.ts';
+import * as Blockly from 'blockly';
+import { montarEditor } from './blocks/workspace.ts';
 import { generarPrograma } from './blocks/generator.ts';
 import { calcularEscala, configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
 import { leerSensores } from './engine/sensors.ts';
@@ -12,8 +13,13 @@ import { DT, Simulacion } from './engine/world.ts';
  *
  *   bloques -> generador -> VM -> motor -> render
  *
- * En cada cuadro, por cada robot: se leen sus sensores, se le pasan a su VM,
- * y la orden que devuelve se escribe en sus ruedas. El motor hace el resto.
+ * En cada cuadro, por cada robot: se leen sus sensores, se decide qué hacer,
+ * y la orden resultante se escribe en sus ruedas. El motor hace el resto.
+ *
+ * Los dos robots se programan con bloques. El azul además puede llevar una
+ * estrategia automática fija, y viene así por defecto: es el único rival que
+ * no cambia, y sin un rival que no cambia no se puede saber si una diferencia
+ * en el combate vino de tus bloques o de los suyos.
  */
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -27,7 +33,20 @@ app.innerHTML = `
   <main class="espacio-trabajo">
     <section class="panel panel-editor">
       <h2 class="titulo-panel">Programa</h2>
-      <div id="editor-bloques"></div>
+
+      <div class="controles">
+        <button type="button" class="boton pestana activa" data-editor="rojo">Rojo</button>
+        <button type="button" class="boton pestana" data-editor="azul">Azul</button>
+
+        <span class="separador-controles"></span>
+
+        <span>Azul:</span>
+        <button type="button" class="boton fuente activa" data-fuente="automatico">Automático</button>
+        <button type="button" class="boton fuente" data-fuente="bloques">Sus bloques</button>
+      </div>
+
+      <div id="editor-rojo" class="editor-bloques"></div>
+      <div id="editor-azul" class="editor-bloques" hidden></div>
     </section>
 
     <section class="panel panel-ring">
@@ -50,8 +69,50 @@ app.innerHTML = `
   </main>
 `;
 
-const contenedorEditor = document.querySelector<HTMLDivElement>('#editor-bloques')!;
-montarEditor(contenedorEditor);
+// --- Los dos editores -----------------------------------------------------
+
+/**
+ * Guardamos las referencias que devuelve `montarEditor()` en vez de usar
+ * `obtenerWorkspace()`: esa función guarda UN workspace en una variable del
+ * módulo, así que con dos editores devolvería siempre el último montado.
+ */
+const contenedorRojo = document.querySelector<HTMLDivElement>('#editor-rojo')!;
+const contenedorAzul = document.querySelector<HTMLDivElement>('#editor-azul')!;
+
+const editores = {
+  rojo: { contenedor: contenedorRojo, workspace: montarEditor(contenedorRojo) },
+  azul: { contenedor: contenedorAzul, workspace: montarEditor(contenedorAzul) },
+};
+
+type Color = keyof typeof editores;
+
+const pestanas = document.querySelectorAll<HTMLButtonElement>('.pestana');
+
+/**
+ * Muestra uno de los dos editores y esconde el otro.
+ *
+ * El `svgResize` no es opcional: Blockly mide el contenedor al inyectarse, y
+ * el editor azul se monta escondido, así que mide 0 y su SVG queda de ese
+ * tamaño. Sin volver a medirlo al mostrarlo, la pestaña azul aparece vacía
+ * aunque los bloques estén ahí.
+ */
+function mostrarEditor(cual: Color): void {
+  for (const nombre of Object.keys(editores) as Color[]) {
+    const visible = nombre === cual;
+    editores[nombre].contenedor.hidden = !visible;
+    if (visible) Blockly.svgResize(editores[nombre].workspace);
+  }
+
+  for (const pestana of pestanas) {
+    pestana.classList.toggle('activa', pestana.dataset.editor === cual);
+  }
+}
+
+for (const pestana of pestanas) {
+  pestana.addEventListener('click', () => mostrarEditor(pestana.dataset.editor as Color));
+}
+
+// --- El ring --------------------------------------------------------------
 
 const canvasRing = document.querySelector<HTMLCanvasElement>('#ring')!;
 const ctxRing = configurarCanvas(canvasRing);
@@ -62,23 +123,61 @@ const robotsPrueba: Robot[] = [
   { id: 'b', x: 20, y: 0, theta: Math.PI, vL: 0, vR: 0, anchoEje: 12, radio: 9, masa: 1.1, vivo: true },
 ];
 
-// --- Controles (A2.4) ---
+// --- Controles ------------------------------------------------------------
 
 const btnJugar = document.querySelector<HTMLButtonElement>('#btn-jugar')!;
 const btnReiniciar = document.querySelector<HTMLButtonElement>('#btn-reiniciar')!;
 const botonesVelocidad = document.querySelectorAll<HTMLButtonElement>('.vel');
+const botonesFuente = document.querySelectorAll<HTMLButtonElement>('.fuente');
 const avisos = document.querySelector<HTMLParagraphElement>('#avisos')!;
 
+// --- Los competidores -----------------------------------------------------
+
+/** De dónde salen las órdenes de un robot. */
+type Fuente = 'bloques' | 'automatico';
+
 /**
- * La VM del robot ROJO, el que se programa con bloques. `null` significa
- * que todavía no se compiló: el programa se compila al pulsar Iniciar y no
- * al cargar, para que el usuario pueda cambiar los bloques y volver a probar.
+ * Un robot con su manera de decidir.
  *
- * El AZUL no tiene VM: lleva una estrategia fija escrita en código (abajo).
- * Así, cuando cambias los bloques, lo único que cambia en el combate es el
- * rojo — y puedes saber si lo que ves vino de tu programa o del rival.
+ * Antes esto estaba escrito a mano, un bloque de código por color. Con dos
+ * robots programables y una fuente que se elige en pantalla, repetir el
+ * bloque significaría cuatro combinaciones escritas a mano; con esta
+ * estructura el bucle trata a los dos igual y la diferencia vive en un dato.
  */
-let vmRojo: VM | null = null;
+interface Competidor {
+  nombre: string;
+  robot: Robot;
+  workspace: Blockly.WorkspaceSvg;
+  fuente: Fuente;
+  /** La VM compilada, o null si este robot va en automático. */
+  vm: VM | null;
+}
+
+const competidores: Competidor[] = [
+  {
+    nombre: 'Rojo',
+    robot: robotsPrueba[0],
+    workspace: editores.rojo.workspace,
+    fuente: 'bloques',
+    vm: null,
+  },
+  {
+    nombre: 'Azul',
+    robot: robotsPrueba[1],
+    workspace: editores.azul.workspace,
+    fuente: 'automatico',
+    vm: null,
+  },
+];
+
+/**
+ * Si los programas ya se compilaron para este combate.
+ *
+ * Hace falta una bandera aparte y no basta con mirar si `vm` es null: un
+ * robot en automático tiene la VM en null legítimamente, así que null no
+ * distingue "no compilado todavía" de "no usa VM".
+ */
+let combatePreparado = false;
 
 /** Recorta una velocidad al máximo real del motor EV3. */
 function saturar(v: number): number {
@@ -86,15 +185,12 @@ function saturar(v: number): number {
 }
 
 /**
- * El rival automático: el robot AZUL.
+ * El rival automático.
  *
  * No usa la VM ni lleva estado. Decide solo con lo que percibe en este
  * instante, y por eso cabe en tres líneas: la memoria que la VM necesita
  * (puntero, pila, duraciones) hace falta para ejecutar un PROGRAMA, no para
  * reaccionar.
- *
- * Es el sparring: siempre se comporta igual, así que cualquier diferencia
- * en el combate viene de los bloques del rojo.
  */
 function estrategiaAutomatica(s: LecturaSensores): Orden {
   // Borde: retrocede girando, para apartarse y reorientarse a la vez.
@@ -107,18 +203,43 @@ function estrategiaAutomatica(s: LecturaSensores): Orden {
   return { vL: 12, vR: -12 };
 }
 
-/** Compila los bloques del editor y crea la VM del robot rojo. */
+/** Qué ordena un competidor en este cuadro. */
+function decidir(c: Competidor, rival: Robot): Orden {
+  const sensores = leerSensores(c.robot, rival);
+
+  // El `!c.vm` cubre el caso de un programa en bloques que no compiló nada:
+  // mejor que el robot se comporte como el automático a que se quede muerto
+  // en el sitio sin explicación.
+  if (c.fuente === 'automatico' || !c.vm) return estrategiaAutomatica(sensores);
+
+  return c.vm.step(sensores);
+}
+
+/** Compila los programas de quienes van con bloques y crea sus VM. */
 function prepararCombate(): void {
-  const { programa, advertencias } = generarPrograma(obtenerWorkspace());
+  const mensajes: string[] = [];
 
-  avisos.textContent = advertencias.join(' ');
+  for (const c of competidores) {
+    if (c.fuente === 'automatico') {
+      c.vm = null;
+      continue;
+    }
 
-  const rojo = robotsPrueba[0];
-  vmRojo = new VM(programa, {
-    anchoEje: rojo.anchoEje,
-    velocidadMax: VELOCIDAD_MAX,
-    dt: DT,
-  });
+    const { programa, advertencias } = generarPrograma(c.workspace);
+
+    // Las advertencias van con el nombre del robot delante: con dos editores,
+    // "hay bloques sueltos" sin decir de cuál no sirve de nada.
+    for (const aviso of advertencias) mensajes.push(`${c.nombre}: ${aviso}`);
+
+    c.vm = new VM(programa, {
+      anchoEje: c.robot.anchoEje,
+      velocidadMax: VELOCIDAD_MAX,
+      dt: DT,
+    });
+  }
+
+  avisos.textContent = mensajes.join(' ');
+  combatePreparado = true;
 }
 
 function sincronizarControles(): void {
@@ -128,25 +249,23 @@ function sincronizarControles(): void {
 
 const sim = new Simulacion(
   robotsPrueba,
-  (robots) => {
-    if (!vmRojo) return;
+  () => {
+    if (!combatePreparado) return;
 
-    const [rojo, azul] = robots;
+    const [rojo, azul] = competidores;
 
-    // Rojo: lo que diga el programa de bloques.
-    if (rojo.vivo) {
-      const orden = vmRojo.step(leerSensores(rojo, azul));
+    for (const [c, rival] of [
+      [rojo, azul.robot],
+      [azul, rojo.robot],
+    ] as const) {
+      if (!c.robot.vivo) continue;
+
+      const orden = decidir(c, rival);
       // Se satura al máximo del motor: el simulador no debe permitir algo
-      // que el robot real no puede hacer.
-      rojo.vL = saturar(orden.vL);
-      rojo.vR = saturar(orden.vR);
-    }
-
-    // Azul: el rival automático, siempre igual.
-    if (azul.vivo) {
-      const orden = estrategiaAutomatica(leerSensores(azul, rojo));
-      azul.vL = saturar(orden.vL);
-      azul.vR = saturar(orden.vR);
+      // que el robot real no puede hacer. La VM ya recorta lo suyo, pero la
+      // estrategia automática no pasa por ella.
+      c.robot.vL = saturar(orden.vL);
+      c.robot.vR = saturar(orden.vR);
     }
   },
   (robots) => {
@@ -175,18 +294,37 @@ btnJugar.addEventListener('click', () => {
     // Solo se compila al empezar un combate, no al reanudar una pausa:
     // recompilar reiniciaría el puntero de la VM y el robot volvería a la
     // primera instrucción.
-    if (!vmRojo) prepararCombate();
+    if (!combatePreparado) prepararCombate();
     sim.iniciar();
   }
   sincronizarControles();
 });
 
 btnReiniciar.addEventListener('click', () => {
-  vmRojo = null; // El próximo Iniciar recompila, por si cambiaron los bloques.
+  // El próximo Iniciar recompila, por si cambiaron los bloques.
+  combatePreparado = false;
+  for (const c of competidores) c.vm = null;
+
   avisos.textContent = '';
   sim.reiniciar();
   sincronizarControles();
 });
+
+for (const boton of botonesFuente) {
+  boton.addEventListener('click', () => {
+    competidores[1].fuente = boton.dataset.fuente as Fuente;
+
+    // Cambiar de fuente a mitad de combate dejaría al azul ejecutando lo
+    // que ya tenía, así que se reinicia: el cambio se nota desde el primer
+    // cuadro y no a medias.
+    combatePreparado = false;
+    for (const c of competidores) c.vm = null;
+    sim.reiniciar();
+
+    for (const otro of botonesFuente) otro.classList.toggle('activa', otro === boton);
+    sincronizarControles();
+  });
+}
 
 for (const boton of botonesVelocidad) {
   boton.addEventListener('click', () => {
