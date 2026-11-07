@@ -40,14 +40,25 @@ export class Simulacion {
   /** Multiplicador de velocidad: 1, 2 o 5. */
   velocidad = 1;
 
+  /**
+   * Se llama UNA vez cuando termina una ronda, con el robot que quedó en pie
+   * o con `null` si no queda ninguno (empate).
+   *
+   * Es opcional para no obligar a nadie que solo quiere mirar la simulación,
+   * como los tests de física, a pasarle una función vacía.
+   */
+  private alTerminar?: (ganador: Robot | null) => void;
+
   constructor(
     robots: Robot[],
     alActualizar: (robots: Robot[], dt: number) => void,
     alDibujar: (robots: Robot[]) => void,
+    alTerminar?: (ganador: Robot | null) => void,
   ) {
     this.robots = robots;
     this.alActualizar = alActualizar;
     this.alDibujar = alDibujar;
+    this.alTerminar = alTerminar;
 
     // Copia superficial de cada robot para poder reiniciar. `Robot` es plano
     // (solo números y booleanos), así que el spread basta.
@@ -60,6 +71,16 @@ export class Simulacion {
 
   get terminado(): boolean {
     return this.robots.filter((r) => r.vivo).length <= 1;
+  }
+
+  /**
+   * El robot que sigue en pie, o `null` si no queda ninguno.
+   *
+   * Solo significa algo cuando el combate terminó: con dos robots vivos
+   * devolvería el primero, que no es "el ganador" de nada.
+   */
+  get ganador(): Robot | null {
+    return this.robots.find((r) => r.vivo) ?? null;
   }
 
   iniciar(): void {
@@ -92,6 +113,16 @@ export class Simulacion {
         if (this.terminado) {
           this.alDibujar(this.robots);
           this.pausar();
+
+          // Después de pausar y no antes: quien reciba el aviso puede querer
+          // reiniciar o arrancar otra ronda, y eso solo es seguro cuando el
+          // bucle ya está parado.
+          //
+          // Que sea UNA sola vez por ronda no lo garantiza esta línea, lo
+          // garantiza el `return` de abajo junto con la primera línea de
+          // `iniciar()`: terminado el combate, el bucle sale y no se puede
+          // volver a arrancar hasta que `reiniciar()` ponga a todos en pie.
+          this.alTerminar?.(this.ganador);
           return;
         }
       }
