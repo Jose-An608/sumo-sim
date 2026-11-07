@@ -7,6 +7,7 @@ import { leerSensores } from './engine/sensors.ts';
 import { VM } from './vm/vm.ts';
 import { VELOCIDAD_MAX, type LecturaSensores, type Orden, type Robot } from './types.ts';
 import { DT, Simulacion } from './engine/world.ts';
+import { Marcador, type Ganador } from './engine/marcador.ts';
 
 /**
  * Punto de entrada. Conecta las dos mitades del proyecto:
@@ -51,11 +52,16 @@ app.innerHTML = `
 
     <section class="panel panel-ring">
       <h2 class="titulo-panel">Ring</h2>
+
+      <p id="marcador" class="marcador" aria-live="polite"></p>
+
       <canvas id="ring" width="600" height="600"></canvas>
 
       <div class="controles">
         <button id="btn-jugar" type="button" class="boton">Iniciar</button>
+        <button id="btn-revancha" type="button" class="boton" disabled>Revancha</button>
         <button id="btn-reiniciar" type="button" class="boton">Reiniciar</button>
+        <button id="btn-marcador-cero" type="button" class="boton">Marcador a cero</button>
 
         <span class="separador-controles"></span>
 
@@ -127,6 +133,9 @@ const robotsPrueba: Robot[] = [
 
 const btnJugar = document.querySelector<HTMLButtonElement>('#btn-jugar')!;
 const btnReiniciar = document.querySelector<HTMLButtonElement>('#btn-reiniciar')!;
+const btnRevancha = document.querySelector<HTMLButtonElement>('#btn-revancha')!;
+const btnMarcadorCero = document.querySelector<HTMLButtonElement>('#btn-marcador-cero')!;
+const elMarcador = document.querySelector<HTMLParagraphElement>('#marcador')!;
 const botonesVelocidad = document.querySelectorAll<HTMLButtonElement>('.vel');
 const botonesFuente = document.querySelectorAll<HTMLButtonElement>('.fuente');
 const avisos = document.querySelector<HTMLParagraphElement>('#avisos')!;
@@ -245,6 +254,48 @@ function prepararCombate(): void {
 function sincronizarControles(): void {
   btnJugar.textContent = sim.corriendo ? 'Pausar' : 'Iniciar';
   btnJugar.disabled = sim.terminado;
+
+  // La revancha solo tiene sentido con la ronda terminada: mientras se
+  // pelea, "empezar otra" dejaría la actual a medias y sin contar.
+  btnRevancha.disabled = !sim.terminado;
+}
+
+// --- El marcador ----------------------------------------------------------
+
+/**
+ * Cuenta de la sesión. Vive aquí y no en `Simulacion` a propósito: el
+ * simulador sabe pelear una ronda, no cuántas se han jugado.
+ *
+ * Reiniciar el combate NO lo toca. Solo se pone a cero con su propio botón,
+ * para poder probar una estrategia varias veces seguidas y ver cuántas gana.
+ */
+const marcador = new Marcador();
+
+function mostrarMarcador(): void {
+  elMarcador.textContent =
+    `Rojo ${marcador.rojo} · Azul ${marcador.azul} · Empates ${marcador.empates}`;
+}
+
+/**
+ * Traduce el robot que quedó en pie al color que lleva el marcador.
+ *
+ * Se compara por referencia con el robot del competidor y no por `id`: los
+ * ids ('a', 'b') son un detalle de los robots de prueba, y el color de quien
+ * ganó no debería depender de cómo se llamen.
+ */
+function ganadorAColor(robot: Robot | null): Ganador {
+  if (!robot) return null;
+  return robot === competidores[0].robot ? 'rojo' : 'azul';
+}
+
+/** Devuelve el combate al principio. No toca el marcador. */
+function reiniciarCombate(): void {
+  // El próximo Iniciar recompila, por si cambiaron los bloques.
+  combatePreparado = false;
+  for (const c of competidores) c.vm = null;
+
+  avisos.textContent = '';
+  sim.reiniciar();
 }
 
 const sim = new Simulacion(
@@ -274,16 +325,26 @@ const sim = new Simulacion(
     dibujarRobot(ctxRing, robots[1], '#3498db', escalaRing);
 
     const vivos = robots.filter((r) => r.vivo);
-    if (vivos.length === 1) {
+    if (vivos.length <= 1) {
+      // Con cero robots en pie es un empate: salieron los dos en el mismo
+      // cuadro. Antes ese caso no mostraba nada.
+      const texto = vivos.length === 1 ? `Gana ${vivos[0].id === 'a' ? 'rojo' : 'azul'}` : 'Empate';
+
       ctxRing.fillStyle = '#ffffff';
       ctxRing.font = 'bold 28px system-ui, sans-serif';
       ctxRing.textAlign = 'center';
-      ctxRing.fillText(`Gana ${vivos[0].id === 'a' ? 'rojo' : 'azul'}`, canvasRing.width / 2, 40);
+      ctxRing.fillText(texto, canvasRing.width / 2, 40);
     }
 
     // La simulación puede pausarse sola al terminar el combate, así que el
     // botón se sincroniza en cada cuadro y no solo al hacer clic.
     sincronizarControles();
+  },
+  (ganador) => {
+    // Una vez por ronda: el motor lo garantiza, así que aquí se anota sin
+    // más y no hace falta ninguna bandera de "ya conté esta".
+    marcador.registrar(ganadorAColor(ganador));
+    mostrarMarcador();
   },
 );
 
@@ -301,13 +362,22 @@ btnJugar.addEventListener('click', () => {
 });
 
 btnReiniciar.addEventListener('click', () => {
-  // El próximo Iniciar recompila, por si cambiaron los bloques.
-  combatePreparado = false;
-  for (const c of competidores) c.vm = null;
-
-  avisos.textContent = '';
-  sim.reiniciar();
+  reiniciarCombate();
   sincronizarControles();
+});
+
+btnRevancha.addEventListener('click', () => {
+  // Reiniciar y arrancar en un solo clic. Se recompila siempre: la revancha
+  // es el momento natural de haber cambiado un bloque.
+  reiniciarCombate();
+  prepararCombate();
+  sim.iniciar();
+  sincronizarControles();
+});
+
+btnMarcadorCero.addEventListener('click', () => {
+  marcador.reiniciar();
+  mostrarMarcador();
 });
 
 for (const boton of botonesFuente) {
@@ -334,4 +404,5 @@ for (const boton of botonesVelocidad) {
 }
 
 // Dibuja el estado inicial y deja los botones en su sitio, sin arrancar.
+mostrarMarcador();
 sim.reiniciar();

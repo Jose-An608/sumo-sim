@@ -275,3 +275,18 @@ body {
   font-size: 0.85rem;
   color: #e8b84b;
 }
+
+/*
+ * Marcador de la sesión, encima del ring.
+ *
+ * `min-height` reserva el alto aunque el texto cambie: sin eso, el canvas
+ * y los botones se moverían un pixel cada vez que se actualiza la cuenta.
+ */
+.marcador {
+  margin: 0 0 0.75rem;
+  min-height: 1.4em;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #e6e9ef;
+}
