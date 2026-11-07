@@ -5,10 +5,13 @@ import { generarPrograma } from './generator.ts';
 import {
   aTexto,
   cargar,
-  CLAVE_GUARDADO,
+  claveDe,
+  crearAutoguardado,
   desdeTexto,
   guardar,
+  PREFIJO_GUARDADO,
   type Almacen,
+  type Programador,
 } from './persistencia.ts';
 
 /**
@@ -18,6 +21,9 @@ import {
  * un Map alcanza. Eso permite ademas probar los casos que en un navegador
  * real son dificiles de provocar, como que escribir lance una excepcion.
  */
+
+/** La clave con la que trabajan los tests que solo usan un editor. */
+const CLAVE = claveDe('rojo');
 
 /** Un localStorage de mentira. */
 function almacenFalso(inicial: Record<string, string> = {}): Almacen {
@@ -97,47 +103,209 @@ describe('ida y vuelta', () => {
   });
 });
 
+describe('la clave de cada editor', () => {
+  test('dos editores distintos dan claves distintas', () => {
+    expect(claveDe('rojo')).not.toBe(claveDe('azul'));
+  });
+
+  test('la clave lleva el prefijo del proyecto', () => {
+    // Para no pisar lo que otra pagina del mismo dominio haya guardado.
+    expect(claveDe('rojo').startsWith(PREFIJO_GUARDADO)).toBe(true);
+  });
+});
+
 describe('guardar en el navegador', () => {
   test('guarda y recupera el programa', () => {
     const almacen = almacenFalso();
     const original = workspaceConPrograma();
 
-    expect(guardar(original, almacen)).toBe(true);
+    expect(guardar(original, almacen, CLAVE)).toBe(true);
 
     const copia = new Blockly.Workspace();
-    expect(cargar(copia, almacen)).toBe(true);
+    expect(cargar(copia, almacen, CLAVE)).toBe(true);
     expect(generarPrograma(copia).programa).toEqual(generarPrograma(original).programa);
+  });
+
+  test('los dos editores no se pisan en el mismo almacen', () => {
+    // El motivo de que la clave sea un parametro: con una sola constante,
+    // guardar el azul borraba el programa del rojo.
+    const almacen = almacenFalso();
+
+    const rojo = workspaceConPrograma();
+    const azul = new Blockly.Workspace();
+    azul.newBlock('sumo_detener');
+
+    guardar(rojo, almacen, claveDe('rojo'));
+    guardar(azul, almacen, claveDe('azul'));
+
+    const copiaRojo = new Blockly.Workspace();
+    const copiaAzul = new Blockly.Workspace();
+    expect(cargar(copiaRojo, almacen, claveDe('rojo'))).toBe(true);
+    expect(cargar(copiaAzul, almacen, claveDe('azul'))).toBe(true);
+
+    expect(generarPrograma(copiaRojo).programa).toEqual(generarPrograma(rojo).programa);
+    expect(generarPrograma(copiaAzul).programa).toEqual(generarPrograma(azul).programa);
+
+    // Y de paso: que los dos programas sean distintos de verdad, porque si
+    // fueran iguales el test pasaria incluso con la constante unica.
+    expect(generarPrograma(copiaAzul).programa).not.toEqual(generarPrograma(rojo).programa);
   });
 
   test('un almacen vacio no carga nada y no revienta', () => {
     const ws = new Blockly.Workspace();
 
-    expect(cargar(ws, almacenFalso())).toBe(false);
+    expect(cargar(ws, almacenFalso(), CLAVE)).toBe(false);
     expect(ws.getTopBlocks(true)).toHaveLength(0);
   });
 
   test('un guardado con basura se descarta y se empieza en blanco', () => {
     // El caso de alguien que edito el localStorage a mano, o de un programa
     // guardado por una version donde un bloque se llamaba distinto.
-    const almacen = almacenFalso({ [CLAVE_GUARDADO]: 'esto no es JSON {{{' });
+    const almacen = almacenFalso({ [CLAVE]: 'esto no es JSON {{{' });
     const ws = new Blockly.Workspace();
 
-    expect(cargar(ws, almacen)).toBe(false);
+    expect(cargar(ws, almacen, CLAVE)).toBe(false);
     expect(ws.getTopBlocks(true)).toHaveLength(0);
   });
 
   test('el guardado corrupto se borra, para no reintentarlo en cada carga', () => {
-    const almacen = almacenFalso({ [CLAVE_GUARDADO]: 'basura' });
-    cargar(new Blockly.Workspace(), almacen);
+    const almacen = almacenFalso({ [CLAVE]: 'basura' });
+    cargar(new Blockly.Workspace(), almacen, CLAVE);
 
-    expect(almacen.getItem(CLAVE_GUARDADO)).toBeNull();
+    expect(almacen.getItem(CLAVE)).toBeNull();
+  });
+
+  test('borrar el guardado de un editor no toca el del otro', () => {
+    // Importa porque el descarte del corrupto usa removeItem: si borrara de
+    // mas, abrir la pagina con el rojo roto te dejaria sin el azul.
+    const almacen = almacenFalso({ [claveDe('rojo')]: 'basura' });
+    guardar(workspaceConPrograma(), almacen, claveDe('azul'));
+
+    cargar(new Blockly.Workspace(), almacen, claveDe('rojo'));
+
+    expect(almacen.getItem(claveDe('azul'))).not.toBeNull();
   });
 
   test('un almacen que lanza no rompe la pagina', () => {
     // Modo incognito, cuota llena, o el usuario bloqueo el almacenamiento.
     const roto = almacenRoto();
 
-    expect(guardar(workspaceConPrograma(), roto)).toBe(false);
-    expect(cargar(new Blockly.Workspace(), roto)).toBe(false);
+    expect(guardar(workspaceConPrograma(), roto, CLAVE)).toBe(false);
+    expect(cargar(new Blockly.Workspace(), roto, CLAVE)).toBe(false);
+  });
+});
+
+/**
+ * Un reloj de mentira: en vez de esperar de verdad, el test avanza el
+ * tiempo a mano. Asi la prueba es instantanea y no depende de la maquina.
+ */
+function relojFalso(): Programador & { avanzar(ms: number): void } {
+  let ahora = 0;
+  let siguienteId = 1;
+  const pendientes = new Map<number, { cuando: number; fn: () => void }>();
+
+  return {
+    setTimeout(fn, ms) {
+      const id = siguienteId++;
+      pendientes.set(id, { cuando: ahora + ms, fn });
+      return id;
+    },
+    clearTimeout(id) {
+      pendientes.delete(id as number);
+    },
+    avanzar(ms) {
+      ahora += ms;
+      for (const [id, p] of [...pendientes]) {
+        if (p.cuando <= ahora) {
+          pendientes.delete(id);
+          p.fn();
+        }
+      }
+    },
+  };
+}
+
+describe('autoguardado', () => {
+  test('no guarda en el acto: espera a que pase el retardo', () => {
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    auto.pedir();
+    expect(veces).toBe(0);
+
+    reloj.avanzar(499);
+    expect(veces).toBe(0);
+
+    reloj.avanzar(1);
+    expect(veces).toBe(1);
+  });
+
+  test('muchos cambios seguidos se guardan una sola vez', () => {
+    // Arrastrar un bloque dispara un evento por cada movimiento del raton.
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    for (let i = 0; i < 50; i++) {
+      auto.pedir();
+      reloj.avanzar(10);
+    }
+    reloj.avanzar(500);
+
+    expect(veces).toBe(1);
+  });
+
+  test('cada cambio reinicia la espera', () => {
+    // Si no, un cambio constante guardaria cada 500 ms en vez de al parar.
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    auto.pedir();
+    reloj.avanzar(400);
+    auto.pedir();
+    reloj.avanzar(400); // 800 ms desde el primero, 400 desde el ultimo
+    expect(veces).toBe(0);
+
+    reloj.avanzar(100);
+    expect(veces).toBe(1);
+  });
+
+  test('dos tandas separadas guardan dos veces', () => {
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    auto.pedir();
+    reloj.avanzar(500);
+    auto.pedir();
+    reloj.avanzar(500);
+
+    expect(veces).toBe(2);
+  });
+
+  test('vaciar guarda ya lo pendiente y no lo repite despues', () => {
+    // Para cuando el usuario cierra la pestaña antes de que venza la espera.
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    auto.pedir();
+    auto.vaciar();
+    expect(veces).toBe(1);
+
+    reloj.avanzar(1000);
+    expect(veces).toBe(1);
+  });
+
+  test('vaciar sin nada pendiente no guarda', () => {
+    const reloj = relojFalso();
+    let veces = 0;
+    const auto = crearAutoguardado(() => veces++, 500, reloj);
+
+    auto.vaciar();
+
+    expect(veces).toBe(0);
   });
 });
