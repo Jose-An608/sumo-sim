@@ -58,6 +58,31 @@ export function aTexto(workspace: Blockly.Workspace): string {
 }
 
 /**
+ * ¿Tiene la forma de un programa de bloques guardado?
+ *
+ * Es un objeto -no un arreglo- cuyas claves son TODAS de las que Blockly
+ * sabe leer. Hace falta mirar las claves porque Blockly IGNORA en silencio
+ * las que no conoce: cargar el `package.json` del proyecto no lanza nada,
+ * simplemente vacia el editor y no pone nada. Sin esta comprobacion,
+ * "no lanzo" parece "se cargo bien".
+ *
+ * Un editor sin bloques se guarda como `{}` y tiene que seguir siendo
+ * valido: no tiene ninguna clave ajena, asi que pasa. Si no pasara, quien
+ * guarda un editor en blanco no podria recuperarlo.
+ *
+ * La lista de claves se le pide a Blockly en vez de escribirla aqui: si el
+ * dia de manana registra otra, esta funcion la reconoce sin tocarla.
+ */
+function esProgramaDeBloques(valor: unknown): valor is ProgramaGuardado {
+  if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return false;
+
+  const registradas = Blockly.registry.getAllItems(Blockly.registry.Type.SERIALIZER, true);
+  const conocidas = Object.keys(registradas ?? {});
+
+  return Object.keys(valor).every((clave) => conocidas.includes(clave));
+}
+
+/**
  * Carga un programa desde texto.
  *
  * @returns true si se cargo, false si el texto no era un programa valido.
@@ -76,10 +101,8 @@ export function desdeTexto(texto: string, workspace: Blockly.Workspace): boolean
     return false;
   }
 
-  // JSON valido no quiere decir programa: `42` o `"hola"` se leen bien, y
-  // Blockly los acepta sin quejarse. Un programa guardado es siempre un
-  // objeto.
-  if (typeof programa !== 'object' || programa === null) return false;
+  // JSON valido no quiere decir programa. Ver `esProgramaDeBloques`.
+  if (!esProgramaDeBloques(programa)) return false;
 
   // Blockly VACIA el workspace antes de cargar. Si lo que viene falla a la
   // mitad -un bloque que no existe, un archivo de otra version- el programa

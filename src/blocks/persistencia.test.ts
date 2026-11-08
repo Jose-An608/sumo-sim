@@ -10,6 +10,7 @@ import {
   desdeTexto,
   guardar,
   PREFIJO_GUARDADO,
+  serializar,
   type Almacen,
   type Programador,
 } from './persistencia.ts';
@@ -341,5 +342,67 @@ describe('abrir un archivo que no sirve', () => {
 
     expect(desdeTexto('esto no es JSON {{{', ws)).toBe(false);
     expect(generarPrograma(ws).programa).toEqual(antes);
+  });
+});
+
+describe('lo que no es un programa de bloques', () => {
+  // José abrio el package.json del proyecto con "Abrir": Blockly no lanzo
+  // nada, vacio el editor, y el autoguardado guardo el vacio encima. Blockly
+  // IGNORA en silencio las claves que no conoce, asi que "no lanza" no
+  // quiere decir "era un programa". Hay que mirar las claves.
+
+  /** El texto se rechaza y el programa que habia queda como estaba. */
+  function seRechazaSinTocar(valor: unknown): void {
+    const ws = workspaceConPrograma();
+    const antes = generarPrograma(ws).programa;
+
+    expect(desdeTexto(JSON.stringify(valor), ws)).toBe(false);
+    expect(generarPrograma(ws).programa).toEqual(antes);
+  }
+
+  test('el contenido de un package.json no es un programa', () => {
+    seRechazaSinTocar({
+      name: 'sumo-sim',
+      version: '0.0.0',
+      scripts: { test: 'vitest run' },
+    });
+  });
+
+  test('un arreglo vacio no es un programa', () => {
+    // En JavaScript un arreglo es un objeto: `typeof [] === 'object'`.
+    seRechazaSinTocar([]);
+  });
+
+  test('un arreglo con cosas dentro tampoco', () => {
+    seRechazaSinTocar([{ blocks: { blocks: [] } }]);
+  });
+
+  test('una clave de programa mezclada con otra ajena se rechaza', () => {
+    // Un archivo de verdad solo tiene claves que Blockly conoce. Una de mas
+    // dice que alguien lo toco a mano o que viene de otra herramienta.
+    const programa = serializar(workspaceConPrograma());
+
+    seRechazaSinTocar({ ...programa, name: 'sumo-sim' });
+  });
+
+  test('un editor vacio guardado se puede volver a cargar', () => {
+    // El contrapeso de los tests de arriba: un editor sin bloques se guarda
+    // como `{}`, y `{}` no puede contar como archivo ajeno, o el usuario no
+    // podria recuperar un editor que dejo en blanco a proposito.
+    const almacen = almacenFalso();
+    guardar(new Blockly.Workspace(), almacen, CLAVE);
+
+    const ws = workspaceConPrograma();
+
+    expect(cargar(ws, almacen, CLAVE)).toBe(true);
+    expect(ws.getTopBlocks(false)).toHaveLength(0);
+  });
+
+  test('un programa de verdad sigue cargando', () => {
+    const original = workspaceConPrograma();
+    const copia = new Blockly.Workspace();
+
+    expect(desdeTexto(aTexto(original), copia)).toBe(true);
+    expect(generarPrograma(copia).programa).toEqual(generarPrograma(original).programa);
   });
 });
