@@ -2,6 +2,16 @@ import './style.css';
 import * as Blockly from 'blockly';
 import { montarEditor } from './blocks/workspace.ts';
 import { generarPrograma } from './blocks/generator.ts';
+import {
+  aTexto,
+  cargar,
+  claveDe,
+  crearAutoguardado,
+  desdeTexto,
+  guardar,
+  type Almacen,
+  type Autoguardado,
+} from './blocks/persistencia.ts';
 import { calcularEscala, configurarCanvas, dibujarRing, dibujarRobot } from './render/canvas.ts';
 import { leerSensores } from './engine/sensors.ts';
 import { VM } from './vm/vm.ts';
@@ -44,6 +54,12 @@ app.innerHTML = `
         <span>Azul:</span>
         <button type="button" class="boton fuente activa" data-fuente="automatico">Automático</button>
         <button type="button" class="boton fuente" data-fuente="bloques">Sus bloques</button>
+
+        <span class="separador-controles"></span>
+
+        <button id="btn-descargar" type="button" class="boton">Descargar</button>
+        <button id="btn-abrir" type="button" class="boton">Abrir</button>
+        <input id="archivo" type="file" accept=".json,application/json" hidden />
       </div>
 
       <div id="editor-rojo" class="editor-bloques"></div>
@@ -78,9 +94,8 @@ app.innerHTML = `
 // --- Los dos editores -----------------------------------------------------
 
 /**
- * Guardamos las referencias que devuelve `montarEditor()` en vez de usar
- * `obtenerWorkspace()`: esa función guarda UN workspace en una variable del
- * módulo, así que con dos editores devolvería siempre el último montado.
+ * Cada llamada a `montarEditor()` crea un editor independiente y devuelve su
+ * workspace; aquí guardamos las dos referencias.
  */
 const contenedorRojo = document.querySelector<HTMLDivElement>('#editor-rojo')!;
 const contenedorAzul = document.querySelector<HTMLDivElement>('#editor-azul')!;
@@ -91,6 +106,58 @@ const editores = {
 };
 
 type Color = keyof typeof editores;
+
+/** El editor que se está viendo. Descargar y Abrir actúan sobre este. */
+let activo: Color = 'rojo';
+
+// --- Guardado automático --------------------------------------------------
+
+/**
+ * `localStorage` se pide dentro de cada método y no al declarar el objeto:
+ * en algunos navegadores, solo ACCEDER a la propiedad ya lanza si el usuario
+ * bloqueó el almacenamiento. Aquí dentro lo atrapan `guardar` y `cargar`.
+ */
+const almacen: Almacen = {
+  getItem: (c) => window.localStorage.getItem(c),
+  setItem: (c, v) => window.localStorage.setItem(c, v),
+  removeItem: (c) => window.localStorage.removeItem(c),
+};
+
+const ESPERA_AUTOGUARDADO_MS = 500;
+
+const autoguardados = {} as Record<Color, Autoguardado>;
+
+for (const color of Object.keys(editores) as Color[]) {
+  const { workspace } = editores[color];
+  const clave = claveDe(color);
+
+  // Se carga ANTES de escuchar cambios: así lo que se acaba de recuperar no
+  // se vuelve a guardar como si el usuario lo hubiera tocado.
+  cargar(workspace, almacen, clave);
+
+  const auto = crearAutoguardado(() => guardar(workspace, almacen, clave), ESPERA_AUTOGUARDADO_MS);
+  autoguardados[color] = auto;
+
+  workspace.addChangeListener((evento) => {
+    // Mover el scroll, seleccionar un bloque o abrir el toolbox son eventos
+    // de interfaz: no cambian el programa, no hay nada que guardar.
+    if (!evento.isUiEvent) auto.pedir();
+  });
+}
+
+/**
+ * Si el usuario cierra la pestaña dentro de la espera, el último cambio
+ * seguiría pendiente y se perdería. `vaciar` lo guarda en el acto.
+ * `visibilitychange` cubre el móvil, donde `pagehide` no siempre se dispara.
+ */
+function guardarPendientes(): void {
+  for (const auto of Object.values(autoguardados)) auto.vaciar();
+}
+
+window.addEventListener('pagehide', guardarPendientes);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') guardarPendientes();
+});
 
 const pestanas = document.querySelectorAll<HTMLButtonElement>('.pestana');
 
@@ -103,6 +170,8 @@ const pestanas = document.querySelectorAll<HTMLButtonElement>('.pestana');
  * aunque los bloques estén ahí.
  */
 function mostrarEditor(cual: Color): void {
+  activo = cual;
+
   for (const nombre of Object.keys(editores) as Color[]) {
     const visible = nombre === cual;
     editores[nombre].contenedor.hidden = !visible;
@@ -139,6 +208,49 @@ const elMarcador = document.querySelector<HTMLParagraphElement>('#marcador')!;
 const botonesVelocidad = document.querySelectorAll<HTMLButtonElement>('.vel');
 const botonesFuente = document.querySelectorAll<HTMLButtonElement>('.fuente');
 const avisos = document.querySelector<HTMLParagraphElement>('#avisos')!;
+
+// --- Descargar y abrir un programa ----------------------------------------
+
+const btnDescargar = document.querySelector<HTMLButtonElement>('#btn-descargar')!;
+const btnAbrir = document.querySelector<HTMLButtonElement>('#btn-abrir')!;
+const entradaArchivo = document.querySelector<HTMLInputElement>('#archivo')!;
+
+btnDescargar.addEventListener('click', () => {
+  const texto = aTexto(editores[activo].workspace);
+  const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = `sumo-sim-${activo}.json`;
+  enlace.click();
+
+  // Se libera después del clic y no en el mismo instante, para no cortar
+  // una descarga que el navegador todavía no empezó.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+});
+
+btnAbrir.addEventListener('click', () => entradaArchivo.click());
+
+entradaArchivo.addEventListener('change', async () => {
+  const archivo = entradaArchivo.files?.[0];
+
+  // Se vacía para que elegir el MISMO archivo dos veces seguidas vuelva a
+  // disparar el evento; si no, el navegador lo toma por "sin cambios".
+  entradaArchivo.value = '';
+  if (!archivo) return;
+
+  // El editor se fija ahora: `await` espera, y el usuario puede cambiar de
+  // pestaña mientras tanto. El archivo va a donde estaba al elegirlo.
+  const color = activo;
+  const texto = await archivo.text();
+
+  if (desdeTexto(texto, editores[color].workspace)) {
+    avisos.textContent = '';
+    autoguardados[color].pedir();
+  } else {
+    avisos.textContent = `${archivo.name} no es un programa válido. No se cambió nada.`;
+  }
+});
 
 // --- Los competidores -----------------------------------------------------
 

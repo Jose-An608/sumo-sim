@@ -44,17 +44,19 @@ const TOOLBOX_SUMO = {
   ],
 };
 
-/** Workspace activo. Lo guardamos para que el generador (B1.3) pueda leerlo. */
-let workspace: Blockly.WorkspaceSvg | null = null;
-
 /**
  * Monta el editor de bloques dentro del contenedor indicado.
+ *
+ * Cada llamada crea un editor independiente y devuelve SU workspace. Antes
+ * se guardaba en una variable del módulo, lo que solo sirve con un editor:
+ * con dos, la variable apuntaba siempre al último y el redimensionado de la
+ * ventana (abajo) se aplicaba dos veces al azul y nunca al rojo.
  *
  * @param contenedor div donde vive el editor. Blockly lo llena por completo,
  *                   así que debe tener alto definido por CSS o no se ve nada.
  */
 export function montarEditor(contenedor: HTMLElement): Blockly.WorkspaceSvg {
-  workspace = Blockly.inject(contenedor, {
+  const workspace = Blockly.inject(contenedor, {
     toolbox: TOOLBOX_SUMO,
     grid: { spacing: 20, length: 3, colour: '#2a2f3a', snap: true },
     zoom: { controls: true, wheel: true, startScale: 0.9 },
@@ -64,21 +66,7 @@ export function montarEditor(contenedor: HTMLElement): Blockly.WorkspaceSvg {
 
   // Blockly mide el contenedor al inyectarse. Si la ventana cambia de tamaño
   // hay que avisarle o el SVG queda del tamaño viejo y los bloques se cortan.
-  window.addEventListener('resize', () => {
-    if (workspace) Blockly.svgResize(workspace);
-  });
+  window.addEventListener('resize', () => Blockly.svgResize(workspace));
 
-  return workspace;
-}
-
-/**
- * Devuelve el workspace montado.
- * Lanza error si todavía no se montó, porque trabajar con `null` silencioso
- * esconde el bug hasta mucho después.
- */
-export function obtenerWorkspace(): Blockly.WorkspaceSvg {
-  if (!workspace) {
-    throw new Error('El editor de bloques no está montado. Llama a montarEditor() primero.');
-  }
   return workspace;
 }
