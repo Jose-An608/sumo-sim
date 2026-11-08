@@ -114,6 +114,21 @@ describe('resolverColisiones', () => {
     expect(a.x).toBe(-5);
     expect(b.x).toBe(5);
   });
+
+  it('si dos robots están exactamente superpuestos los separa en X, sin NaN', () => {
+    // Misma posición: la distancia es 0 y no hay dirección de choque.
+    // Sin el caso especial, dx / distancia sería 0 / 0 = NaN.
+    const a = crearRobot({ id: 'a' });
+    const b = crearRobot({ id: 'b' });
+
+    resolverColisiones([a, b]);
+
+    // Penetración 18 (dos radios de 9), masas iguales: cada uno cede 9.
+    expect(a.x).toBeCloseTo(-9);
+    expect(b.x).toBeCloseTo(9);
+    expect(a.y).toBe(0);
+    expect(b.y).toBe(0);
+  });
 });
 
 describe('empuje en colisiones', () => {
