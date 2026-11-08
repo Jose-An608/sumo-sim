@@ -309,3 +309,37 @@ describe('autoguardado', () => {
     expect(veces).toBe(0);
   });
 });
+
+describe('abrir un archivo que no sirve', () => {
+  // Abrir el archivo equivocado no puede costarle al usuario el programa
+  // que tenia en el editor: un error se avisa, pero no se paga con datos.
+
+  test('un JSON valido que no es un programa no borra lo que habia', () => {
+    const ws = workspaceConPrograma();
+    const antes = generarPrograma(ws).programa;
+
+    const ajeno = JSON.stringify({
+      blocks: { languageVersion: 0, blocks: [{ type: 'bloque_que_no_existe', x: 0, y: 0 }] },
+    });
+
+    expect(desdeTexto(ajeno, ws)).toBe(false);
+    expect(generarPrograma(ws).programa).toEqual(antes);
+  });
+
+  test('un JSON que ni siquiera es un objeto tampoco lo borra', () => {
+    const ws = workspaceConPrograma();
+    const antes = generarPrograma(ws).programa;
+
+    expect(desdeTexto('null', ws)).toBe(false);
+    expect(desdeTexto('42', ws)).toBe(false);
+    expect(generarPrograma(ws).programa).toEqual(antes);
+  });
+
+  test('un texto que no es JSON no toca el editor', () => {
+    const ws = workspaceConPrograma();
+    const antes = generarPrograma(ws).programa;
+
+    expect(desdeTexto('esto no es JSON {{{', ws)).toBe(false);
+    expect(generarPrograma(ws).programa).toEqual(antes);
+  });
+});

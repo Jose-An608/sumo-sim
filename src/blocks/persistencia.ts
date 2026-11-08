@@ -68,11 +68,34 @@ export function aTexto(workspace: Blockly.Workspace): string {
  * equivocado programando. Quien llama decide si avisar o seguir callado.
  */
 export function desdeTexto(texto: string, workspace: Blockly.Workspace): boolean {
+  let programa: unknown;
+
   try {
-    const programa = JSON.parse(texto) as ProgramaGuardado;
-    deserializar(programa, workspace);
+    programa = JSON.parse(texto);
+  } catch {
+    return false;
+  }
+
+  // JSON valido no quiere decir programa: `42` o `"hola"` se leen bien, y
+  // Blockly los acepta sin quejarse. Un programa guardado es siempre un
+  // objeto.
+  if (typeof programa !== 'object' || programa === null) return false;
+
+  // Blockly VACIA el workspace antes de cargar. Si lo que viene falla a la
+  // mitad -un bloque que no existe, un archivo de otra version- el programa
+  // que habia ya no esta. Se guarda una copia para devolverlo: equivocarse
+  // de archivo no puede costar el trabajo.
+  const anterior = serializar(workspace);
+
+  try {
+    deserializar(programa as ProgramaGuardado, workspace);
     return true;
   } catch {
+    try {
+      deserializar(anterior, workspace);
+    } catch {
+      // Si ni la copia se puede devolver, no hay mas que hacer.
+    }
     return false;
   }
 }
