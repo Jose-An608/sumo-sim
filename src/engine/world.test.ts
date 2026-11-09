@@ -131,3 +131,28 @@ describe('fin de ronda', () => {
     expect(alTerminar).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('tiempo acumulado', () => {
+  test('tras una pausa larga no ejecuta miles de pasos de golpe', () => {
+    // Si la pestaña estuvo en segundo plano, el siguiente cuadro llega con un
+    // salto enorme de tiempo. Sin tope, el while intentaría simularlo todo y
+    // la página se colgaría.
+    let pasos = 0;
+    const sim = new Simulacion(
+      [crearRobot('a', -20), crearRobot('b', 20)],
+      () => {
+        pasos++;
+      },
+      () => {},
+    );
+
+    sim.iniciar();
+    pendiente?.(performance.now() + 10_000); // llegan 10 s de golpe
+
+    // 10 s serían 600 pasos. Con el tope de 0.25 s son unos 15.
+    expect(pasos).toBeGreaterThan(0);
+    expect(pasos).toBeLessThan(20);
+
+    sim.pausar();
+  });
+});

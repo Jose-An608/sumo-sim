@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 /**
  * GitHub Pages no sirve el sitio en la raíz del dominio, sino en
@@ -29,7 +29,26 @@ import { defineConfig } from 'vite';
  * La comparación con `=== true` es a propósito: la documentación avisa que
  * algunas herramientas que cargan la configuración pasan estas banderas como
  * undefined.
+ *
+ * El import viene de 'vitest/config' y no de 'vite' para que el bloque `test`
+ * de abajo tenga tipos. Para todo lo demás es el mismo `defineConfig`.
  */
 export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview === true ? '/sumo-sim/' : '/',
+
+  test: {
+    coverage: {
+      provider: 'v8',
+
+      // Con `include`, los archivos que ningún test importa también salen en
+      // la tabla, con 0%. Sin él, un archivo sin tests simplemente no
+      // aparecería, que es justo lo que queremos ver.
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts'],
+
+      // `text` para leerla en la terminal; `html` para entrar archivo por
+      // archivo y ver qué líneas exactas quedaron sin ejecutar.
+      reporter: ['text', 'html'],
+    },
+  },
 }));
