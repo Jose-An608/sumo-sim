@@ -120,6 +120,27 @@ describe('instrucciones con duracion', () => {
     expect(ordenes[37]).toEqual({ vL: 15, vR: -15 });
     expect(ordenes[38]).toEqual({ vL: 0, vR: 0 });
   });
+
+  test('girar con velocidad 0 no divide entre cero: ocupa un cuadro y sigue', () => {
+    // Con velocidad 0 la velocidad angular es 0, y t = angulo / w dividiría
+    // entre cero. Sin la guarda, el giro duraría para siempre y el programa
+    // se quedaría pegado en esta instrucción.
+    const vm = new VM(
+      [
+        { tipo: 'girar', grados: 90, velocidad: 0 },
+        { tipo: 'avanzar', velocidad: 20, duracionMs: 1000 },
+      ],
+      CONFIG,
+    );
+
+    const ordenes = correr(vm, 2);
+
+    // Primer cuadro: ruedas quietas (el giro ocupa un cuadro mínimo).
+    expect(ordenes[0].vL).toBeCloseTo(0);
+    expect(ordenes[0].vR).toBeCloseTo(0);
+    // Segundo cuadro: ya pasó a la instrucción siguiente.
+    expect(ordenes[1]).toEqual({ vL: 20, vR: 20 });
+  });
 });
 
 describe('condicionales', () => {
@@ -163,6 +184,24 @@ describe('condicionales', () => {
     ).toEqual({ vL: 0, vR: 0 });
   });
 
+  test('lado der solo responde al sensor derecho', () => {
+    // Es la misma comprobación que la del izquierdo, espejada. Sin ella, la
+    // rama `der` de hayBorde nunca se ejecuta en ningún test, y un error que
+    // devolviera el sensor izquierdo ahí pasaría desapercibido.
+    const programa = (): Instruccion[] => [
+      { tipo: 'siBorde', lado: 'der', entonces: [AVANZAR] },
+    ];
+
+    const soloDerecho = new VM(programa(), CONFIG);
+    expect(
+      soloDerecho.step({ ...sensoresVacios(), bordeDerecho: true }),
+    ).toEqual({ vL: 40, vR: 40 });
+
+    const soloIzquierdo = new VM(programa(), CONFIG);
+    expect(
+      soloIzquierdo.step({ ...sensoresVacios(), bordeIzquierdo: true }),
+    ).toEqual({ vL: 0, vR: 0 });
+  });
   test('el lado cualquiera responde a los dos sensores', () => {
     const programa = (): Instruccion[] => [
       { tipo: 'siBorde', lado: 'cualquiera', entonces: [AVANZAR] },
