@@ -2,6 +2,7 @@ import './style.css';
 import * as Blockly from 'blockly';
 import { montarEditor } from './blocks/workspace.ts';
 import { generarPrograma } from './blocks/generator.ts';
+import { aPseudocodigoEV3 } from './blocks/pseudocodigo.ts';
 import {
   aTexto,
   cargar,
@@ -59,6 +60,7 @@ app.innerHTML = `
 
         <button id="btn-descargar" type="button" class="boton">Descargar</button>
         <button id="btn-abrir" type="button" class="boton">Abrir</button>
+        <button id="btn-pseudocodigo" type="button" class="boton">Copiar pseudocódigo</button>
         <input id="archivo" type="file" accept=".json,application/json" hidden />
       </div>
 
@@ -249,6 +251,50 @@ entradaArchivo.addEventListener('change', async () => {
     autoguardados[color].pedir();
   } else {
     avisos.textContent = `${archivo.name} no es un programa válido. No se cambió nada.`;
+  }
+});
+
+// --- Copiar el pseudocódigo -----------------------------------------------
+
+const btnPseudocodigo = document.querySelector<HTMLButtonElement>('#btn-pseudocodigo')!;
+
+/**
+ * Copia al portapapeles el programa del editor que se está viendo, escrito
+ * como pseudocódigo para armarlo en el robot EV3 real.
+ *
+ * Se usa el ancho de eje del robot de ese color y no un número fijo: cuánto
+ * dura un giro depende de él.
+ */
+btnPseudocodigo.addEventListener('click', async () => {
+  const color = activo;
+  const nombre = color === 'rojo' ? 'Rojo' : 'Azul';
+  const robot = robotsPrueba[color === 'rojo' ? 0 : 1];
+
+  const { programa, advertencias } = generarPrograma(editores[color].workspace);
+  const texto = aPseudocodigoEV3(programa, {
+    anchoEje: robot.anchoEje,
+    velocidadMax: VELOCIDAD_MAX,
+  });
+
+  // Un editor vacío da texto vacío. Copiarlo borraría lo que el usuario
+  // tuviera en el portapapeles sin darle nada a cambio.
+  if (texto === '') {
+    avisos.textContent = `${nombre}: no hay bloques que exportar.`;
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(texto);
+
+    // Las advertencias (bloques sueltos) importan aquí más que nunca: esos
+    // bloques NO están en el texto copiado, y sin el aviso parecería que sí.
+    const avisosDelGenerador = advertencias.map((aviso) => `${nombre}: ${aviso}`);
+    avisos.textContent = [`Pseudocódigo de ${nombre} copiado.`, ...avisosDelGenerador].join(' ');
+  } catch {
+    // El portapapeles exige una página segura (https o localhost) y que el
+    // usuario no haya bloqueado el permiso. Que falle no es un error del
+    // programa: se avisa y ya.
+    avisos.textContent = 'No se pudo copiar: el navegador bloqueó el acceso al portapapeles.';
   }
 });
 
