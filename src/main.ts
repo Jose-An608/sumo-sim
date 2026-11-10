@@ -3,6 +3,7 @@ import * as Blockly from 'blockly';
 import { montarEditor } from './blocks/workspace.ts';
 import { generarPrograma } from './blocks/generator.ts';
 import { aPseudocodigoEV3 } from './blocks/pseudocodigo.ts';
+import { cargarEjemplo, EJEMPLOS } from './blocks/ejemplos.ts';
 import {
   aTexto,
   cargar,
@@ -61,6 +62,10 @@ app.innerHTML = `
         <button id="btn-descargar" type="button" class="boton">Descargar</button>
         <button id="btn-abrir" type="button" class="boton">Abrir</button>
         <button id="btn-pseudocodigo" type="button" class="boton">Copiar pseudocódigo</button>
+        <select id="ejemplos" class="boton" aria-label="Cargar un ejemplo">
+          <option value="">Ejemplos…</option>
+          ${EJEMPLOS.map((e) => `<option value="${e.id}">${e.nombre}</option>`).join('')}
+        </select>
         <input id="archivo" type="file" accept=".json,application/json" hidden />
       </div>
 
@@ -91,6 +96,17 @@ app.innerHTML = `
       <p id="avisos" class="avisos"></p>
     </section>
   </main>
+
+  <dialog id="dialogo" class="dialogo" aria-labelledby="dialogo-titulo">
+    <form method="dialog">
+      <h3 id="dialogo-titulo" class="dialogo-titulo"></h3>
+      <p id="dialogo-texto" class="dialogo-texto"></p>
+      <div class="dialogo-acciones">
+        <button type="submit" value="cancelar" class="boton" autofocus>Cancelar</button>
+        <button type="submit" value="aceptar" id="dialogo-aceptar" class="boton aviso-accion"></button>
+      </div>
+    </form>
+  </dialog>
 `;
 
 // --- Los dos editores -----------------------------------------------------
@@ -295,6 +311,79 @@ btnPseudocodigo.addEventListener('click', async () => {
     // usuario no haya bloqueado el permiso. Que falle no es un error del
     // programa: se avisa y ya.
     avisos.textContent = 'No se pudo copiar: el navegador bloqueó el acceso al portapapeles.';
+  }
+});
+
+// --- Cargar un ejemplo ----------------------------------------------------
+
+const menuEjemplos = document.querySelector<HTMLSelectElement>('#ejemplos')!;
+const dialogo = document.querySelector<HTMLDialogElement>('#dialogo')!;
+
+/**
+ * Pregunta antes de una acción que no se puede deshacer.
+ *
+ * Es un `<dialog>` propio y no `window.confirm`: ese no se puede estilizar y
+ * desentona con la página. El navegador se ocupa del foco, de Escape y de
+ * bloquear lo de atrás.
+ *
+ * `returnValue` se vacía antes de abrir: al cerrar con Escape el navegador
+ * NO lo toca, y se quedaría con el valor de la vez anterior. Sin esto, tras
+ * aceptar una vez, Escape contaría como aceptar.
+ */
+function confirmar(titulo: string, texto: string, textoAceptar: string): Promise<boolean> {
+  dialogo.querySelector('#dialogo-titulo')!.textContent = titulo;
+  dialogo.querySelector('#dialogo-texto')!.textContent = texto;
+  dialogo.querySelector('#dialogo-aceptar')!.textContent = textoAceptar;
+
+  dialogo.returnValue = '';
+  dialogo.showModal();
+
+  return new Promise((resolver) => {
+    dialogo.addEventListener('close', () => resolver(dialogo.returnValue === 'aceptar'), {
+      once: true,
+    });
+  });
+}
+
+// Un clic en el fondo oscuro, fuera de la caja, equivale a cancelar.
+dialogo.addEventListener('click', (evento) => {
+  if (evento.target === dialogo) dialogo.close('cancelar');
+});
+
+/**
+ * Carga una estrategia de ejemplo en el editor que se está viendo.
+ *
+ * Reemplaza lo que hubiera, así que si el editor ya tiene bloques se pide
+ * confirmación: un clic equivocado en un menú no debería costar el trabajo.
+ */
+menuEjemplos.addEventListener('change', async () => {
+  const id = menuEjemplos.value;
+
+  // El menú vuelve siempre a "Ejemplos…": es una acción, no un estado, y así
+  // se puede elegir el mismo ejemplo dos veces seguidas.
+  menuEjemplos.value = '';
+  if (id === '') return;
+
+  const color = activo;
+  const nombre = color === 'rojo' ? 'Rojo' : 'Azul';
+  const { workspace } = editores[color];
+
+  if (workspace.getAllBlocks(false).length > 0) {
+    const ejemplo = EJEMPLOS.find((e) => e.id === id)!;
+    const sigue = await confirmar(
+      `¿Reemplazar el programa de ${nombre}?`,
+      `Se cargará «${ejemplo.nombre}» y los bloques que tienes ahora se perderán.`,
+      'Reemplazar',
+    );
+    if (!sigue) return;
+  }
+
+  if (cargarEjemplo(id, workspace)) {
+    const ejemplo = EJEMPLOS.find((e) => e.id === id)!;
+    avisos.textContent = `${nombre}: ${ejemplo.nombre}. ${ejemplo.descripcion}`;
+    autoguardados[color].pedir();
+  } else {
+    avisos.textContent = 'No se pudo cargar el ejemplo. No se cambió nada.';
   }
 });
 

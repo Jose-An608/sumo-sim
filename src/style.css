@@ -269,11 +269,70 @@ body {
   background: #3a4150;
   margin: 0 0.35rem;
 }
+
+/*
+ * `max-width` = ancho del canvas. La columna del ring es `auto`, es decir,
+ * mide lo que mida su contenido mas ancho: un aviso largo en una sola linea
+ * la estiraba, la columna del editor quedaba mas angosta que su min-width y
+ * el editor se montaba encima del ring. Con este tope el texto baja de linea.
+ */
 .avisos {
+  max-width: 600px;
   margin-top: 0.5rem;
   min-height: 1.2em;
   font-size: 0.85rem;
   color: #e8b84b;
+}
+
+/* ---------- Diálogo de confirmación ---------- */
+
+.dialogo {
+  width: min(92vw, 26rem);
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #3a4150;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--texto);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+.dialogo::backdrop {
+  background: rgba(5, 7, 11, 0.7);
+}
+
+.dialogo-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.dialogo-texto {
+  margin: 0 0 1.25rem;
+  color: var(--texto-apagado);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.dialogo-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Botón de la acción que destruye algo: ámbar, el color de los avisos. */
+.boton.aviso-accion {
+  background: #e8b84b;
+  border-color: #e8b84b;
+  color: #1a1305;
+  font-weight: 600;
+}
+
+.boton.aviso-accion:hover:not(:disabled) {
+  background: #f0c765;
+}
+
+.dialogo .boton:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
 }
 
 /*
